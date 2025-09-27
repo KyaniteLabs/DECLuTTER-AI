@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, Platform;
 import 'dart:ui' show Rect, Size;
@@ -17,6 +18,7 @@ import 'detection_interpreter.dart';
 /// returning mock detections from a JSON asset. This keeps the UI plumbing and
 /// async flow realistic for the MVP.
 class DetectorService {
+
   DetectorService({AssetBundle? bundle, DetectionInterpreter? interpreter})
       : _bundle = bundle ?? rootBundle,
         _providedInterpreter = interpreter,
@@ -25,9 +27,11 @@ class DetectorService {
   final AssetBundle _bundle;
   final DetectionInterpreter? _providedInterpreter;
   DetectionInterpreter? _interpreter;
+
   List<String> _labels = const [];
   bool _isInitialized = false;
   bool _useMockDetections = false;
+  final bool? _isMobileOverride;
 
   /// Ensures the model (or fallback) is ready before inference.
   Future<void> initialize() async {
@@ -48,6 +52,7 @@ class DetectorService {
       return;
     }
 
+
     if (_providedInterpreter != null) {
       _interpreter = _providedInterpreter;
       _useMockDetections = false;
@@ -60,6 +65,7 @@ class DetectorService {
         final interpreter = await TfliteDetectionInterpreter.fromAsset('model/detector.tflite');
         _interpreter = interpreter;
         _useMockDetections = false;
+
       } catch (error) {
         debugPrint('DetectorService: failed to load model, falling back to mock data: $error');
         _useMockDetections = true;
@@ -113,12 +119,13 @@ class DetectorService {
       return DetectionResult(
         detections: detections,
         originalSize: originalSize,
-        isMocked: false,
+        isMocked: true,
         inferenceTime: stopwatch.elapsed,
       );
     } catch (error) {
       debugPrint('DetectorService: inference failure ($error); using mock data.');
       final detections = await _loadMockDetections();
+      stopwatch.stop();
       return DetectionResult(
         detections: detections,
         originalSize: originalSize,
