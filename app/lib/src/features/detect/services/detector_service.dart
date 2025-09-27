@@ -119,18 +119,18 @@ class DetectorService {
       return DetectionResult(
         detections: detections,
         originalSize: originalSize,
-        isMocked: true,
+        isMocked: false,
         inferenceTime: stopwatch.elapsed,
       );
     } catch (error) {
       debugPrint('DetectorService: inference failure ($error); using mock data.');
-      final detections = await _loadMockDetections();
       stopwatch.stop();
+      final detections = await _loadMockDetections();
       return DetectionResult(
         detections: detections,
         originalSize: originalSize,
         isMocked: true,
-        inferenceTime: stopwatch.elapsed,
+        inferenceTime: const Duration(milliseconds: 120),
       );
     }
   }
