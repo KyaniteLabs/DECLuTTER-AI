@@ -116,6 +116,30 @@ void main() {
       await tempDir.delete(recursive: true);
     });
   });
+
+  test('detector service keeps mock flag when interpreter throws', () async {
+    final bundle = _MapAssetBundle({
+      'assets/model/labels.txt': 'apple\nbanana',
+      'assets/prompts/debug_sample_detections.json':
+          '{"detections": [{"label": "0", "confidence": 0.5, "box": {"left": 0.1, "top": 0.2, "right": 0.3, "bottom": 0.4}}]}',
+    });
+
+    final interpreter = _ThrowingDetectionInterpreter();
+    final service = DetectorService(bundle: bundle, interpreter: interpreter);
+
+    final tempDir = await Directory.systemTemp.createTemp('detector_test_throwing_interpreter');
+    final imageFile = File('${tempDir.path}/sample.jpg');
+    final generated = img.Image(width: 16, height: 16);
+    await imageFile.writeAsBytes(img.encodeJpg(generated));
+
+    final result = await service.detectOnImage(imageFile.path);
+
+    expect(result.isMocked, isTrue);
+    expect(result.detections, isNotEmpty);
+    expect(result.inferenceTime, equals(const Duration(milliseconds: 120)));
+
+    await tempDir.delete(recursive: true);
+  });
 }
 
 class _MapAssetBundle extends CachingAssetBundle {
@@ -228,9 +252,11 @@ class _FixtureDetectionInterpreter implements DetectionInterpreter {
   }
 }
 
+
 class _ThrowingInterpreter implements DetectionInterpreter {
   @override
   List<int> get inputShape => const [1, 4, 4, 3];
+
 
   @override
   TfLiteType get inputType => TfLiteType.float32;
