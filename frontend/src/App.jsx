@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import ErrorBoundary from './components/ErrorBoundary'
 
 // Initialize i18n
 import './i18n/config'
@@ -50,8 +51,9 @@ const LoadingFallback = () => (
 
 function App() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <Router>
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingFallback />}>
+        <Router>
         <Routes>
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
@@ -101,7 +103,8 @@ function App() {
         <Route path="*" element={<div className="p-8"><h1 className="text-2xl">404 - Page Not Found</h1></div>} />
       </Routes>
     </Router>
-    </Suspense>
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 

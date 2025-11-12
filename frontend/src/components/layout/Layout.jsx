@@ -37,8 +37,8 @@ export function Layout() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="text-2xl">🤝</div>
-              <h1 className="text-xl font-bold text-gray-900">CommunityCircle</h1>
+              <div className="text-2xl">⭕</div>
+              <h1 className="text-xl font-bold text-gray-900">MutualCircle</h1>
             </div>
             <nav className="hidden md:flex items-center gap-6">
               {navigation.map((item) => (

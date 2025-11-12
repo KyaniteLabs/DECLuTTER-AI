@@ -1,8 +1,8 @@
-# CommunityCircle
+# MutualCircle ⭕
 
-**Integrated Mutual Aid Platform**
+**Community-Powered Mutual Aid Platform**
 
-CommunityCircle is a comprehensive mutual aid platform that combines four core features into one cohesive system:
+MutualCircle is a comprehensive mutual aid platform that combines four core features into one cohesive system:
 
 1. **📍 Pantry Locator (Project 10)** - Discovery: Find food pantries and resources via 211 API
 2. **🤝 Needs & Offers Board (Project 1)** - Matching: SMS-enabled community needs and offers

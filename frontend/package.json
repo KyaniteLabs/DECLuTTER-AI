@@ -1,7 +1,7 @@
 {
-  "name": "communitycircle-frontend",
+  "name": "mutualcircle-frontend",
   "version": "1.0.0",
-  "description": "CommunityCircle - Integrated Mutual Aid Platform Frontend",
+  "description": "MutualCircle - Community-Powered Mutual Aid Platform",
   "type": "module",
   "scripts": {
     "dev": "vite",
