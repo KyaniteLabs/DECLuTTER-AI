@@ -1,6 +1,11 @@
+import { Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import ErrorBoundary from './components/ErrorBoundary'
+
+// Initialize i18n
+import './i18n/config'
 
 // Auth pages
 import { LoginPage } from './features/auth/LoginPage'
@@ -22,14 +27,34 @@ import ShiftDetailPage from './features/shifts/ShiftDetailPage'
 import MyShiftsPage from './features/shifts/MyShiftsPage'
 import CreateShiftPage from './features/shifts/CreateShiftPage'
 
-// Placeholder pages for future phases
-const PodsPage = () => <div className="p-8"><h1 className="text-3xl font-bold">Pods</h1><p className="mt-4">Coming soon - Phase 4</p></div>
-const ResourcesPage = () => <div className="p-8"><h1 className="text-3xl font-bold">Pantry Locator</h1><p className="mt-4">Coming soon - Phase 3</p></div>
+// Resources pages (Project 10: Pantry Locator - Phase 3)
+import ResourceSearchPage from './features/resources/ResourceSearchPage'
+import ResourceDetailPage from './features/resources/ResourceDetailPage'
+
+// Pods pages (Project 2: Pods/Micro-Circles - Phase 4)
+import PodsListPage from './features/pods/PodsListPage'
+import CreatePodPage from './features/pods/CreatePodPage'
+import PodDetailPage from './features/pods/PodDetailPage'
+import CheckInPage from './features/pods/CheckInPage'
+import SOSPage from './features/pods/SOSPage'
+import PodPostsPage from './features/pods/PodPostsPage'
+
+// Loading component while translations load
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      <p className="text-gray-600">Loading...</p>
+    </div>
+  </div>
+);
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingFallback />}>
+        <Router>
+        <Routes>
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -61,19 +86,25 @@ function App() {
           <Route path="/shifts/my-shifts" element={<MyShiftsPage />} />
           <Route path="/shifts/:id" element={<ShiftDetailPage />} />
 
-          {/* Project 2: Pods (Phase 4) */}
-          <Route path="/pods" element={<PodsPage />} />
-          <Route path="/pods/:id" element={<PodsPage />} />
-
           {/* Project 10: Pantry Locator (Phase 3) */}
-          <Route path="/resources" element={<ResourcesPage />} />
-          <Route path="/resources/:id" element={<ResourcesPage />} />
+          <Route path="/resources" element={<ResourceSearchPage />} />
+          <Route path="/resources/:id" element={<ResourceDetailPage />} />
+
+          {/* Project 2: Pods/Micro-Circles (Phase 4) */}
+          <Route path="/pods" element={<PodsListPage />} />
+          <Route path="/pods/create" element={<CreatePodPage />} />
+          <Route path="/pods/:id" element={<PodDetailPage />} />
+          <Route path="/pods/:id/check-in" element={<CheckInPage />} />
+          <Route path="/pods/:id/sos" element={<SOSPage />} />
+          <Route path="/pods/:id/posts/:postId" element={<PodPostsPage />} />
         </Route>
 
         {/* 404 */}
         <Route path="*" element={<div className="p-8"><h1 className="text-2xl">404 - Page Not Found</h1></div>} />
       </Routes>
     </Router>
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { Home, Search, Users, MessageCircle, LogOut, User as UserIcon, FileText, Calendar } from 'lucide-react'
+import { Home, Search, Users, MessageCircle, LogOut, User as UserIcon, FileText, Calendar, MapPin, CircleDot } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
+import LanguageSelector from '../LanguageSelector'
 
 export function Layout() {
   const location = useLocation()
@@ -12,8 +13,9 @@ export function Layout() {
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Posts', href: '/posts', icon: Search },
-    { name: 'Matches', href: '/matches', icon: MessageCircle },
-    { name: 'Shifts', href: '/shifts', icon: Users },
+    { name: 'Resources', href: '/resources', icon: MapPin },
+    { name: 'Shifts', href: '/shifts', icon: Calendar },
+    { name: 'Pods', href: '/pods', icon: CircleDot },
   ]
 
   const isActive = (path) => {
@@ -35,8 +37,8 @@ export function Layout() {
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="text-2xl">🤝</div>
-              <h1 className="text-xl font-bold text-gray-900">CommunityCircle</h1>
+              <div className="text-2xl">⭕</div>
+              <h1 className="text-xl font-bold text-gray-900">MutualCircle</h1>
             </div>
             <nav className="hidden md:flex items-center gap-6">
               {navigation.map((item) => (
@@ -59,6 +61,9 @@ export function Layout() {
                 <span className="sr-only">Matches</span>
                 <MessageCircle size={24} />
               </Link>
+
+              {/* Language selector */}
+              <LanguageSelector variant="dropdown" />
 
               {/* User menu */}
               <div className="relative">
