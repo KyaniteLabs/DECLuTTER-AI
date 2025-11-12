@@ -16,8 +16,13 @@ import { PostDetailPage } from './features/posts/PostDetailPage'
 import { MyPostsPage } from './features/posts/MyPostsPage'
 import { MatchesPage } from './features/posts/MatchesPage'
 
+// Shifts pages (Project 3: Volunteer Scheduling - Phase 2)
+import ShiftCalendarPage from './features/shifts/ShiftCalendarPage'
+import ShiftDetailPage from './features/shifts/ShiftDetailPage'
+import MyShiftsPage from './features/shifts/MyShiftsPage'
+import CreateShiftPage from './features/shifts/CreateShiftPage'
+
 // Placeholder pages for future phases
-const ShiftsPage = () => <div className="p-8"><h1 className="text-3xl font-bold">Volunteer Shifts</h1><p className="mt-4">Coming soon - Phase 2</p></div>
 const PodsPage = () => <div className="p-8"><h1 className="text-3xl font-bold">Pods</h1><p className="mt-4">Coming soon - Phase 4</p></div>
 const ResourcesPage = () => <div className="p-8"><h1 className="text-3xl font-bold">Pantry Locator</h1><p className="mt-4">Coming soon - Phase 3</p></div>
 
@@ -51,8 +56,10 @@ function App() {
           <Route path="/matches" element={<MatchesPage />} />
 
           {/* Project 3: Volunteer Scheduling (Phase 2) */}
-          <Route path="/shifts" element={<ShiftsPage />} />
-          <Route path="/shifts/:id" element={<ShiftsPage />} />
+          <Route path="/shifts" element={<ShiftCalendarPage />} />
+          <Route path="/shifts/create" element={<CreateShiftPage />} />
+          <Route path="/shifts/my-shifts" element={<MyShiftsPage />} />
+          <Route path="/shifts/:id" element={<ShiftDetailPage />} />
 
           {/* Project 2: Pods (Phase 4) */}
           <Route path="/pods" element={<PodsPage />} />

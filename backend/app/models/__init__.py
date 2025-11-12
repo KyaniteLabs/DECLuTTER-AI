@@ -4,9 +4,9 @@
 from app.models.user import User, UserProfile
 from app.models.post import Post, Match, ContactToken
 from app.models.notification import Notification, ActivityLog, Report
+from app.models.shift import Organization, Shift, ShiftSignup
 
 # Models for other projects will be imported as they're created
-# from app.models.shift import Organization, Shift, ShiftSignup
 # from app.models.pod import Pod, PodMembership, PodPost, CheckInSchedule, CheckInResponse
 # from app.models.resource import ResourceListing, ResourceBookmark
 
@@ -19,4 +19,7 @@ __all__ = [
     "Notification",
     "ActivityLog",
     "Report",
+    "Organization",
+    "Shift",
+    "ShiftSignup",
 ]

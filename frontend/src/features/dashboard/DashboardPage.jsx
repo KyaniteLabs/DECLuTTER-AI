@@ -2,15 +2,18 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { usePostsStore } from '../../store/postsStore'
-import { Plus, MessageCircle, FileText, TrendingUp, MapPin } from 'lucide-react'
+import { useShiftsStore } from '../../store/shiftsStore'
+import { Plus, MessageCircle, FileText, TrendingUp, MapPin, Calendar } from 'lucide-react'
 
 export function DashboardPage() {
   const { user } = useAuthStore()
   const { myPosts, matches, getMyPosts, getMyMatches } = usePostsStore()
+  const { myShifts, fetchMyShifts } = useShiftsStore()
   const [stats, setStats] = useState({
     activePosts: 0,
     pendingMatches: 0,
     completedMatches: 0,
+    upcomingShifts: 0,
   })
 
   useEffect(() => {
@@ -22,12 +25,14 @@ export function DashboardPage() {
       const [postsData, matchesData] = await Promise.all([
         getMyPosts(),
         getMyMatches(),
+        fetchMyShifts({ upcoming_only: true }),
       ])
 
       setStats({
         activePosts: postsData.filter(p => p.status === 'open').length,
         pendingMatches: matchesData.filter(m => m.status === 'pending').length,
         completedMatches: matchesData.filter(m => m.status === 'completed').length,
+        upcomingShifts: myShifts.filter(s => s.status === 'confirmed').length,
       })
     } catch (err) {
       console.error('Failed to load dashboard data:', err)
@@ -54,7 +59,7 @@ export function DashboardPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="mb-8 grid gap-6 md:grid-cols-3">
+      <div className="mb-8 grid gap-6 md:grid-cols-4">
         <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <div className="flex items-center justify-between">
             <div>
@@ -99,12 +104,28 @@ export function DashboardPage() {
             Great job helping your community!
           </p>
         </div>
+
+        <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-600">Upcoming Shifts</p>
+              <p className="mt-2 text-3xl font-bold text-purple-900">{stats.upcomingShifts}</p>
+            </div>
+            <Calendar className="text-purple-600" size={40} />
+          </div>
+          <Link
+            to="/shifts/my-shifts"
+            className="mt-4 inline-flex items-center text-sm font-medium text-purple-700 hover:text-purple-900"
+          >
+            View my shifts →
+          </Link>
+        </div>
       </div>
 
       {/* Quick Actions */}
       <div className="mb-8">
         <h2 className="mb-4 text-xl font-semibold text-gray-900">Quick Actions</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Link
             to="/posts/create"
             className="card hover:shadow-md transition-shadow text-center p-6"
@@ -154,6 +175,19 @@ export function DashboardPage() {
             <h3 className="font-semibold text-gray-900">My Posts</h3>
             <p className="mt-1 text-sm text-gray-600">
               Manage your posts
+            </p>
+          </Link>
+
+          <Link
+            to="/shifts"
+            className="card hover:shadow-md transition-shadow text-center p-6"
+          >
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100">
+              <Calendar className="text-indigo-600" size={24} />
+            </div>
+            <h3 className="font-semibold text-gray-900">Browse Shifts</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              Find volunteer opportunities
             </p>
           </Link>
         </div>
@@ -251,21 +285,16 @@ export function DashboardPage() {
       {/* Coming Soon Features */}
       <div className="mt-8 card bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
         <h2 className="mb-4 text-lg font-semibold text-purple-900">Coming Soon</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="text-center">
-            <div className="text-3xl mb-2">📅</div>
-            <h3 className="font-semibold text-purple-900">Volunteer Shifts</h3>
-            <p className="text-sm text-purple-700">Sign up for community shifts</p>
-          </div>
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="text-center">
             <div className="text-3xl mb-2">📍</div>
             <h3 className="font-semibold text-purple-900">Pantry Locator</h3>
-            <p className="text-sm text-purple-700">Find food pantries nearby</p>
+            <p className="text-sm text-purple-700">Find food pantries nearby (Phase 3)</p>
           </div>
           <div className="text-center">
             <div className="text-3xl mb-2">👥</div>
             <h3 className="font-semibold text-purple-900">Pods</h3>
-            <p className="text-sm text-purple-700">Join micro-support circles</p>
+            <p className="text-sm text-purple-700">Join micro-support circles (Phase 4)</p>
           </div>
         </div>
       </div>

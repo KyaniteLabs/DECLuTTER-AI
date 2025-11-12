@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { Home, Search, Users, MessageCircle, LogOut, User as UserIcon, FileText } from 'lucide-react'
+import { Home, Search, Users, MessageCircle, LogOut, User as UserIcon, FileText, Calendar } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 
 export function Layout() {
@@ -104,6 +104,14 @@ export function Layout() {
                         >
                           <MessageCircle size={16} />
                           My Matches
+                        </Link>
+                        <Link
+                          to="/shifts/my-shifts"
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <Calendar size={16} />
+                          My Shifts
                         </Link>
                       </div>
 
