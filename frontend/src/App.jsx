@@ -30,8 +30,13 @@ import CreateShiftPage from './features/shifts/CreateShiftPage'
 import ResourceSearchPage from './features/resources/ResourceSearchPage'
 import ResourceDetailPage from './features/resources/ResourceDetailPage'
 
-// Placeholder pages for future phases
-const PodsPage = () => <div className="p-8"><h1 className="text-3xl font-bold">Pods</h1><p className="mt-4">Coming soon - Phase 4</p></div>
+// Pods pages (Project 2: Pods/Micro-Circles - Phase 4)
+import PodsListPage from './features/pods/PodsListPage'
+import CreatePodPage from './features/pods/CreatePodPage'
+import PodDetailPage from './features/pods/PodDetailPage'
+import CheckInPage from './features/pods/CheckInPage'
+import SOSPage from './features/pods/SOSPage'
+import PodPostsPage from './features/pods/PodPostsPage'
 
 // Loading component while translations load
 const LoadingFallback = () => (
@@ -83,9 +88,13 @@ function App() {
           <Route path="/resources" element={<ResourceSearchPage />} />
           <Route path="/resources/:id" element={<ResourceDetailPage />} />
 
-          {/* Project 2: Pods (Phase 4) */}
-          <Route path="/pods" element={<PodsPage />} />
-          <Route path="/pods/:id" element={<PodsPage />} />
+          {/* Project 2: Pods/Micro-Circles (Phase 4) */}
+          <Route path="/pods" element={<PodsListPage />} />
+          <Route path="/pods/create" element={<CreatePodPage />} />
+          <Route path="/pods/:id" element={<PodDetailPage />} />
+          <Route path="/pods/:id/check-in" element={<CheckInPage />} />
+          <Route path="/pods/:id/sos" element={<SOSPage />} />
+          <Route path="/pods/:id/posts/:postId" element={<PodPostsPage />} />
         </Route>
 
         {/* 404 */}

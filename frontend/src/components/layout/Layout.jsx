@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { Home, Search, Users, MessageCircle, LogOut, User as UserIcon, FileText, Calendar, MapPin } from 'lucide-react'
+import { Home, Search, Users, MessageCircle, LogOut, User as UserIcon, FileText, Calendar, MapPin, CircleDot } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import LanguageSelector from '../LanguageSelector'
 
@@ -14,7 +14,8 @@ export function Layout() {
     { name: 'Home', href: '/', icon: Home },
     { name: 'Posts', href: '/posts', icon: Search },
     { name: 'Resources', href: '/resources', icon: MapPin },
-    { name: 'Shifts', href: '/shifts', icon: Users },
+    { name: 'Shifts', href: '/shifts', icon: Calendar },
+    { name: 'Pods', href: '/pods', icon: CircleDot },
   ]
 
   const isActive = (path) => {
