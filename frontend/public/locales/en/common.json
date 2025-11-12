@@ -15,6 +15,7 @@
     "settings": "Settings",
     "logout": "Logout"
   },
+  "all": "All",
   "actions": {
     "save": "Save",
     "cancel": "Cancel",

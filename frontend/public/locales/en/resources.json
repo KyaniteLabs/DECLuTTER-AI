@@ -50,9 +50,17 @@
     "mapView": "Map",
     "noResults": "No resources found",
     "noResultsDescription": "Try adjusting your search filters or location.",
-    "resultsCount": "{{count}} resources found",
+    "resultsCount": "{{count}} resource{{count, plural, one {} other {s}}} found",
     "mapNoResults": "No resources to display on map",
-    "mapNoResultsDescription": "Try adjusting your search filters to find resources."
+    "mapNoResultsDescription": "Try adjusting your search filters to find resources.",
+    "sortDistance": "Distance (Closest First)",
+    "sortNameAsc": "Name (A-Z)",
+    "sortNameDesc": "Name (Z-A)",
+    "sortRecent": "Recently Added",
+    "sortVerified": "Most Verified",
+    "sortCategory": "Category",
+    "subtitle": "Discover food pantries, shelters, and community resources nearby",
+    "searchButton": "Search"
   },
   "detail": {
     "description": "About",
@@ -71,6 +79,7 @@
     "callNow": "Call Now",
     "getDirections": "Get Directions",
     "visitWebsite": "Visit Website",
+    "viewDetails": "View Details",
     "bookmark": "Bookmark",
     "bookmarked": "Bookmarked",
     "verify": "Verify This Resource",

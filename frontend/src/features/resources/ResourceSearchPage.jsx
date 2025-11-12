@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useResourcesStore } from '../../store/resourcesStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { formatDistance, radiusFromMeters, radiusToMeters, getRadiusSliderConfig } from '../../utils/units';
@@ -7,6 +8,7 @@ import ResourceMapView from './ResourceMapView';
 import { MapPin, Search, Filter, List, Map, Bookmark, Phone, Globe, Clock, ArrowUpDown } from 'lucide-react';
 
 export default function ResourceSearchPage() {
+  const { t } = useTranslation('resources');
   const navigate = useNavigate();
   const {
     resources,
@@ -72,31 +74,31 @@ export default function ResourceSearchPage() {
 
   // Phase 3.5: Expanded categories (Option A: 8 main categories)
   const categories = [
-    { value: 'food', label: 'Food', icon: '🍎' },
-    { value: 'shelter', label: 'Shelter', icon: '🏠' },
-    { value: 'healthcare', label: 'Healthcare', icon: '⚕️' },
-    { value: 'clothing_household', label: 'Clothing & Household', icon: '👕' },
-    { value: 'legal', label: 'Legal Services', icon: '⚖️' },
-    { value: 'financial', label: 'Financial Assistance', icon: '💰' },
-    { value: 'employment_education', label: 'Employment & Education', icon: '💼' },
-    { value: 'transportation', label: 'Transportation', icon: '🚌' },
+    { value: 'food', label: t('categories.food'), icon: '🍎' },
+    { value: 'shelter', label: t('categories.shelter'), icon: '🏠' },
+    { value: 'healthcare', label: t('categories.healthcare'), icon: '⚕️' },
+    { value: 'clothing_household', label: t('categories.clothing_household'), icon: '👕' },
+    { value: 'legal', label: t('categories.legal'), icon: '⚖️' },
+    { value: 'financial', label: t('categories.financial'), icon: '💰' },
+    { value: 'employment_education', label: t('categories.employment_education'), icon: '💼' },
+    { value: 'transportation', label: t('categories.transportation'), icon: '🚌' },
   ];
 
   // Phase 3.5: Population-specific filters
   const populationFilters = [
-    { value: 'veterans', label: 'Veterans', icon: '🎖️' },
-    { value: 'lgbtq', label: 'LGBTQ+ Friendly', icon: '🏳️‍🌈' },
-    { value: 'families', label: 'Family-Friendly', icon: '👨‍👩‍👧' },
-    { value: 'immigrants', label: 'Immigrant Services', icon: '🌍' },
-    { value: 'disability_accessible', label: 'Disability Accessible', icon: '♿' },
-    { value: 'youth', label: 'Youth Programs', icon: '👶' },
-    { value: 'seniors', label: 'Senior Services', icon: '👴' },
+    { value: 'veterans', label: t('populationTags.veterans'), icon: '🎖️' },
+    { value: 'lgbtq', label: t('populationTags.lgbtq'), icon: '🏳️‍🌈' },
+    { value: 'families', label: t('populationTags.families'), icon: '👨‍👩‍👧' },
+    { value: 'immigrants', label: t('populationTags.immigrants'), icon: '🌍' },
+    { value: 'disability_accessible', label: t('populationTags.disability_accessible'), icon: '♿' },
+    { value: 'youth', label: t('populationTags.youth'), icon: '👶' },
+    { value: 'seniors', label: t('populationTags.seniors'), icon: '👴' },
   ];
 
   if (loading && resources.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-gray-600">Loading resources...</div>
+        <div className="text-gray-600">{t('common:loading', 'Loading...')}</div>
       </div>
     );
   }
@@ -107,9 +109,9 @@ export default function ResourceSearchPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
           <MapPin size={32} />
-          Find Resources
+          {t('search.title')}
         </h1>
-        <p className="text-gray-600">Discover food pantries, shelters, and community resources nearby</p>
+        <p className="text-gray-600">{t('search.subtitle', 'Discover food pantries, shelters, and community resources nearby')}</p>
       </div>
 
       {/* Search Bar */}
@@ -121,7 +123,7 @@ export default function ResourceSearchPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search by name or description..."
+              placeholder={t('search.searchPlaceholder')}
               className="w-full pl-10 pr-4 py-3 border-gray-300 rounded-lg"
             />
             <Search className="absolute left-3 top-3.5 text-gray-400" size={20} />
@@ -130,11 +132,12 @@ export default function ResourceSearchPage() {
             onClick={handleSearch}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Search
+            {t('search.searchButton', 'Search')}
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+            title={showFilters ? t('search.hideFilters') : t('search.showFilters')}
           >
             <Filter size={20} />
           </button>
@@ -151,7 +154,7 @@ export default function ResourceSearchPage() {
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          All
+          {t('common:all')}
         </button>
         {categories.map((cat) => (
           <button
@@ -177,7 +180,7 @@ export default function ResourceSearchPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search Radius
+                  {t('search.radius')}
                 </label>
                 <select
                   value={filters.radius}
@@ -235,7 +238,7 @@ export default function ResourceSearchPage() {
                     }}
                     className="rounded border-gray-300"
                   />
-                  <span className="text-sm font-medium text-gray-700">Open now</span>
+                  <span className="text-sm font-medium text-gray-700">{t('search.openNow')}</span>
                 </label>
               </div>
 
@@ -248,7 +251,7 @@ export default function ResourceSearchPage() {
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
-                  Clear Filters
+                  {t('search.clearFilters')}
                 </button>
               </div>
             </div>
@@ -256,7 +259,7 @@ export default function ResourceSearchPage() {
             {/* Phase 3.5: Population Filters */}
             <div className="border-t pt-4">
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Population-Specific Resources
+                {t('search.populationFiltersTitle')}
               </label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {populationFilters.map((filter) => (
@@ -282,8 +285,7 @@ export default function ResourceSearchPage() {
                 ))}
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Note: These filters are informational and help you find resources that may serve specific populations.
-                Please verify eligibility requirements with each resource.
+                {t('search.populationFiltersDisclaimer')}
               </p>
             </div>
           </div>
@@ -293,7 +295,7 @@ export default function ResourceSearchPage() {
       {/* View Mode Toggle */}
       <div className="mb-4 flex justify-between items-center">
         <div className="text-sm text-gray-600">
-          {resources.length} resource{resources.length !== 1 ? 's' : ''} found
+          {t('search.resultsCount', { count: resources.length })}
         </div>
         <div className="flex gap-2">
           <button
@@ -305,7 +307,7 @@ export default function ResourceSearchPage() {
             }`}
           >
             <List size={16} />
-            List
+            {t('search.listView')}
           </button>
           <button
             onClick={() => setViewMode('map')}
@@ -316,7 +318,7 @@ export default function ResourceSearchPage() {
             }`}
           >
             <Map size={16} />
-            Map
+            {t('search.mapView')}
           </button>
         </div>
         
@@ -331,12 +333,12 @@ export default function ResourceSearchPage() {
             }}
             className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="distance">Distance (Closest First)</option>
-            <option value="name_asc">Name (A-Z)</option>
-            <option value="name_desc">Name (Z-A)</option>
-            <option value="recent">Recently Added</option>
-            <option value="verified">Most Verified</option>
-            <option value="category">Category</option>
+            <option value="distance">{t('search.sortDistance', 'Distance (Closest First)')}</option>
+            <option value="name_asc">{t('search.sortNameAsc', 'Name (A-Z)')}</option>
+            <option value="name_desc">{t('search.sortNameDesc', 'Name (Z-A)')}</option>
+            <option value="recent">{t('search.sortRecent', 'Recently Added')}</option>
+            <option value="verified">{t('search.sortVerified', 'Most Verified')}</option>
+            <option value="category">{t('search.sortCategory', 'Category')}</option>
           </select>
         </div>
       </div>
@@ -353,9 +355,9 @@ export default function ResourceSearchPage() {
         <div className="space-y-4">
           {resources.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-8 text-center">
-              <p className="text-gray-600 mb-4">No resources found in your area.</p>
+              <p className="text-gray-600 mb-4">{t('search.noResults')}</p>
               <p className="text-sm text-gray-500">
-                Try adjusting your search radius or category filters.
+                {t('search.noResultsDescription')}
               </p>
             </div>
           ) : (
@@ -379,13 +381,13 @@ export default function ResourceSearchPage() {
                       {/* Phase 3.5: Community-Contributed Badge */}
                       {resource.is_community_contributed && (
                         <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full flex items-center gap-1">
-                          <span>👥</span> Community
+                          <span>👥</span> {t('badges.community')}
                         </span>
                       )}
                       {/* Phase 3.5: Verification Badge */}
                       {resource.verification_count > 0 && (
                         <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full flex items-center gap-1">
-                          <span>✓</span> Verified ({resource.verification_count})
+                          <span>✓</span> {t('badges.verified', { count: resource.verification_count })}
                         </span>
                       )}
                     </div>
@@ -418,7 +420,7 @@ export default function ResourceSearchPage() {
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline"
                           >
-                            Visit Website
+                            {t('detail.visitWebsite')}
                           </a>
                         </div>
                       )}
@@ -426,7 +428,7 @@ export default function ResourceSearchPage() {
                       {resource.hours && (
                         <div className="flex items-center gap-2 text-gray-700">
                           <Clock size={16} className="text-gray-400" />
-                          <span>See hours</span>
+                          <span>{t('detail.hours')}</span>
                         </div>
                       )}
                     </div>
@@ -462,7 +464,7 @@ export default function ResourceSearchPage() {
                     onClick={() => navigate(`/resources/${resource.id}`)}
                     className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                   >
-                    View Details
+                    {t('detail.viewDetails')}
                   </button>
                 </div>
               </div>
@@ -477,9 +479,9 @@ export default function ResourceSearchPage() {
           {resources.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-8 text-center">
               <Map size={48} className="mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600 mb-2">No resources to display on map</p>
+              <p className="text-gray-600 mb-2">{t('search.mapNoResults')}</p>
               <p className="text-sm text-gray-500">
-                Try adjusting your search filters to find resources.
+                {t('search.mapNoResultsDescription')}
               </p>
             </div>
           ) : (

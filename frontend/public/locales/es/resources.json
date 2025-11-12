@@ -50,9 +50,17 @@
     "mapView": "Mapa",
     "noResults": "No se encontraron recursos",
     "noResultsDescription": "Intenta ajustar tus filtros de búsqueda o ubicación.",
-    "resultsCount": "{{count}} recursos encontrados",
+    "resultsCount": "{{count}} recurso{{count, plural, one {} other {s}}} encontrado{{count, plural, one {} other {s}}}",
     "mapNoResults": "No hay recursos para mostrar en el mapa",
-    "mapNoResultsDescription": "Intenta ajustar tus filtros de búsqueda para encontrar recursos."
+    "mapNoResultsDescription": "Intenta ajustar tus filtros de búsqueda para encontrar recursos.",
+    "sortDistance": "Distancia (Más Cercano Primero)",
+    "sortNameAsc": "Nombre (A-Z)",
+    "sortNameDesc": "Nombre (Z-A)",
+    "sortRecent": "Agregado Recientemente",
+    "sortVerified": "Más Verificado",
+    "sortCategory": "Categoría",
+    "subtitle": "Descubre despensas de alimentos, refugios y recursos comunitarios cercanos",
+    "searchButton": "Buscar"
   },
   "detail": {
     "description": "Acerca de",
