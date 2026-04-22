@@ -47,7 +47,8 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
   void initState() {
     super.initState();
     _ownsCashToClearApi = widget.cashToClearApi == null;
-    _cashToClearApi = widget.cashToClearApi ?? CashToClearApiClient.fromEnvironment();
+    _cashToClearApi =
+        widget.cashToClearApi ?? CashToClearApiClient.fromEnvironment();
     if (widget.groupedResult.hasGroups) {
       _selectedGroupId = widget.groupedResult.primaryGroup?.id;
     }
@@ -119,7 +120,9 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
     final selectedGroup = widget.groupedResult.groupForId(_selectedGroupId);
     if (selectedGroup == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select a highlighted group before logging a decision.')),
+        const SnackBar(
+            content:
+                Text('Select a highlighted group before logging a decision.')),
       );
       return;
     }
@@ -130,7 +133,9 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       builder: (context) => _DecisionNoteSheet(
         category: category,
         group: selectedGroup,
-        progress: _decisions.where((decision) => decision.groupId == selectedGroup.id).length,
+        progress: _decisions
+            .where((decision) => decision.groupId == selectedGroup.id)
+            .length,
       ),
     );
 
@@ -179,7 +184,8 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
     if (sessionId == null || remoteItem == null) {
       _pendingRemoteDecisions.add(pending);
       setState(() {
-        _cashToClearSyncMessage = 'Decision queued until Cash-to-Clear sync is ready.';
+        _cashToClearSyncMessage =
+            'Decision queued until Cash-to-Clear sync is ready.';
       });
       return;
     }
@@ -203,7 +209,8 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       if (!mounted) return;
       setState(() {
         _isSyncingCashToClear = false;
-        _cashToClearSyncMessage = 'Decision saved locally; backend sync failed ($error).';
+        _cashToClearSyncMessage =
+            'Decision saved locally; backend sync failed ($error).';
       });
     }
   }
@@ -231,7 +238,9 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       }
 
       final sessionId = _remoteSessionId;
-      final refreshed = sessionId == null ? null : await _cashToClearApi.getSession(sessionId);
+      final refreshed = sessionId == null
+          ? null
+          : await _cashToClearApi.getSession(sessionId);
       if (!mounted) return;
       setState(() {
         if (refreshed != null) {
@@ -248,7 +257,8 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       if (!mounted) return;
       setState(() {
         _isSyncingCashToClear = false;
-        _cashToClearSyncMessage = 'Decision saved locally; queued sync failed ($error).';
+        _cashToClearSyncMessage =
+            'Decision saved locally; queued sync failed ($error).';
       });
     }
   }
@@ -271,9 +281,12 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
   Future<void> _createPublicListingPage(String groupId) async {
     final sessionId = _remoteSessionId;
     final remoteItem = _remoteItemsByGroupId[groupId];
-    if (!_cashToClearApi.isConfigured || sessionId == null || remoteItem == null) {
+    if (!_cashToClearApi.isConfigured ||
+        sessionId == null ||
+        remoteItem == null) {
       setState(() {
-        _cashToClearSyncMessage = 'Sync Cash-to-Clear values before creating a page.';
+        _cashToClearSyncMessage =
+            'Sync Cash-to-Clear values before creating a page.';
       });
       return;
     }
@@ -302,7 +315,8 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       setState(() {
         _creatingListingPageGroupIds.remove(groupId);
         _isSyncingCashToClear = false;
-        _cashToClearSyncMessage = 'Could not create listing page. Please try again.';
+        _cashToClearSyncMessage =
+            'Could not create listing page. Please try again.';
       });
     }
   }
@@ -405,7 +419,8 @@ class _CapturedPhotoPreview extends StatelessWidget {
         children: [
           if (!kIsWeb)
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
               child: Image.file(
                 File(imagePath),
                 fit: BoxFit.cover,
@@ -415,7 +430,8 @@ class _CapturedPhotoPreview extends StatelessWidget {
           else
             const Padding(
               padding: EdgeInsets.all(16),
-              child: Text('Preview not available on web build, but your capture is saved.'),
+              child: Text(
+                  'Preview not available on web build, but your capture is saved.'),
             ),
           Padding(
             padding: const EdgeInsets.all(16),
@@ -424,7 +440,8 @@ class _CapturedPhotoPreview extends StatelessWidget {
               children: [
                 Text(
                   'Captured zone snapshot',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 if (capturedAt != null) ...[
                   const SizedBox(height: 8),
@@ -489,7 +506,8 @@ class CashToClearStatusCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.attach_money, color: theme.colorScheme.onSecondaryContainer),
+                Icon(Icons.attach_money,
+                    color: theme.colorScheme.onSecondaryContainer),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -550,7 +568,8 @@ class CashToClearStatusCard extends StatelessWidget {
                   return const SizedBox.shrink();
                 }
                 final publicUrl = publicListingUrlsByGroupId[group.id];
-                final isCreating = creatingListingPageGroupIds.contains(group.id);
+                final isCreating =
+                    creatingListingPageGroupIds.contains(group.id);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Column(
@@ -560,7 +579,8 @@ class CashToClearStatusCard extends StatelessWidget {
                         onPressed: isCreating || publicUrl != null
                             ? null
                             : () => onCreateListingPage(group.id),
-                        icon: Icon(isCreating ? Icons.hourglass_empty : Icons.public),
+                        icon: Icon(
+                            isCreating ? Icons.hourglass_empty : Icons.public),
                         label: Text(
                           isCreating
                               ? 'Creating page...'
@@ -612,7 +632,8 @@ class SessionDecisionComposer extends StatelessWidget {
     final theme = Theme.of(context);
     final Map<String, int> decisionCounts = {};
     for (final decision in decisions) {
-      decisionCounts.update(decision.groupId, (value) => value + 1, ifAbsent: () => 1);
+      decisionCounts.update(decision.groupId, (value) => value + 1,
+          ifAbsent: () => 1);
     }
 
     final groups = groupedResult.groups;
@@ -626,17 +647,19 @@ class SessionDecisionComposer extends StatelessWidget {
           children: [
             Text(
               'Log your decisions',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            const Text('Choose a highlighted group, then tap the bucket that matches your action. Add a quick note to lock it in.'),
+            const Text(
+                'Choose a highlighted group, then tap the bucket that matches your action. Add a quick note to lock it in.'),
             const SizedBox(height: 16),
             if (!groupedResult.hasGroups)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceVariant,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -647,27 +670,27 @@ class SessionDecisionComposer extends StatelessWidget {
             else ...[
               Text(
                 'Pick a group to work on:',
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: groups
-                    .map(
-                      (group) {
-                        final resolved = decisionCounts[group.id] ?? 0;
-                        final isSelected = group.id == selectedGroupId;
-                        final label = '${group.displayLabel} · ${resolved}/${group.count} sorted';
-                        return ChoiceChip(
-                          selected: isSelected,
-                          onSelected: (_) => onGroupSelected(group.id),
-                          avatar: const Icon(Icons.layers_outlined),
-                          label: Text(label),
-                        );
-                      },
-                    )
-                    .toList(),
+                children: groups.map(
+                  (group) {
+                    final resolved = decisionCounts[group.id] ?? 0;
+                    final isSelected = group.id == selectedGroupId;
+                    final label =
+                        '${group.displayLabel} · $resolved/${group.count} sorted';
+                    return ChoiceChip(
+                      selected: isSelected,
+                      onSelected: (_) => onGroupSelected(group.id),
+                      avatar: const Icon(Icons.layers_outlined),
+                      label: Text(label),
+                    );
+                  },
+                ).toList(),
               ),
               const SizedBox(height: 16),
             ],
@@ -677,9 +700,10 @@ class SessionDecisionComposer extends StatelessWidget {
               children: DecisionCategory.values
                   .map(
                     (category) => FilledButton.tonalIcon(
-                      onPressed: !groupedResult.hasGroups || selectedGroupId == null
-                          ? null
-                          : () => onCategorySelected(category),
+                      onPressed:
+                          !groupedResult.hasGroups || selectedGroupId == null
+                              ? null
+                              : () => onCategorySelected(category),
                       icon: Icon(category.icon),
                       label: Text(category.label),
                     ),
@@ -719,7 +743,8 @@ class SessionDecisionHistory extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text('Each logged action drops into this running list so your summary writes itself.'),
+              const Text(
+                  'Each logged action drops into this running list so your summary writes itself.'),
               if (groupedResult.hasGroups) ...[
                 const SizedBox(height: 12),
                 Wrap(
@@ -729,7 +754,8 @@ class SessionDecisionHistory extends StatelessWidget {
                       .map(
                         (group) => Chip(
                           avatar: const Icon(Icons.layers_outlined),
-                          label: Text('${group.displayLabel}: 0/${group.count} sorted'),
+                          label: Text(
+                              '${group.displayLabel}: 0/${group.count} sorted'),
                         ),
                       )
                       .toList(),
@@ -744,7 +770,8 @@ class SessionDecisionHistory extends StatelessWidget {
     final theme = Theme.of(context);
     final Map<String, int> decisionCounts = {};
     for (final decision in decisions) {
-      decisionCounts.update(decision.groupId, (value) => value + 1, ifAbsent: () => 1);
+      decisionCounts.update(decision.groupId, (value) => value + 1,
+          ifAbsent: () => 1);
     }
 
     return Column(
@@ -752,24 +779,24 @@ class SessionDecisionHistory extends StatelessWidget {
       children: [
         Text(
           'Session log',
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         if (groupedResult.hasGroups)
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: groups
-                .map(
-                  (group) {
-                    final resolved = decisionCounts[group.id] ?? 0;
-                    return Chip(
-                      avatar: const Icon(Icons.assignment_turned_in_outlined),
-                      label: Text('${group.displayLabel}: $resolved/${group.count} sorted'),
-                    );
-                  },
-                )
-                .toList(),
+            children: groups.map(
+              (group) {
+                final resolved = decisionCounts[group.id] ?? 0;
+                return Chip(
+                  avatar: const Icon(Icons.assignment_turned_in_outlined),
+                  label: Text(
+                      '${group.displayLabel}: $resolved/${group.count} sorted'),
+                );
+              },
+            ).toList(),
           ),
         if (groupedResult.hasGroups) const SizedBox(height: 12),
         ...decisions.map(
@@ -788,7 +815,8 @@ class SessionDecisionHistory extends StatelessWidget {
                         children: [
                           Icon(
                             decision.category.icon,
-                            color: decision.category.foregroundColor(theme.colorScheme),
+                            color: decision.category
+                                .foregroundColor(theme.colorScheme),
                           ),
                           const SizedBox(width: 8),
                           Column(
@@ -797,14 +825,16 @@ class SessionDecisionHistory extends StatelessWidget {
                               Text(
                                 decision.category.label,
                                 style: theme.textTheme.titleMedium?.copyWith(
-                                  color: decision.category.foregroundColor(theme.colorScheme),
+                                  color: decision.category
+                                      .foregroundColor(theme.colorScheme),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
                                 'Group ${decision.groupId} • ${decision.groupLabel}',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: decision.category.foregroundColor(theme.colorScheme),
+                                  color: decision.category
+                                      .foregroundColor(theme.colorScheme),
                                 ),
                               ),
                             ],
@@ -812,9 +842,11 @@ class SessionDecisionHistory extends StatelessWidget {
                         ],
                       ),
                       Text(
-                        TimeOfDay.fromDateTime(decision.createdAt).format(context),
+                        TimeOfDay.fromDateTime(decision.createdAt)
+                            .format(context),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: decision.category.foregroundColor(theme.colorScheme),
+                          color: decision.category
+                              .foregroundColor(theme.colorScheme),
                         ),
                       ),
                     ],
@@ -823,7 +855,8 @@ class SessionDecisionHistory extends StatelessWidget {
                   Text(
                     'Progress: ${decisionCounts[decision.groupId] ?? 0}/${decision.groupTotal} items sorted',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: decision.category.foregroundColor(theme.colorScheme),
+                      color:
+                          decision.category.foregroundColor(theme.colorScheme),
                     ),
                   ),
                   if (decision.note != null && decision.note!.isNotEmpty) ...[
@@ -831,7 +864,8 @@ class SessionDecisionHistory extends StatelessWidget {
                     Text(
                       decision.note!,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: decision.category.foregroundColor(theme.colorScheme),
+                        color: decision.category
+                            .foregroundColor(theme.colorScheme),
                       ),
                     ),
                   ],
@@ -844,7 +878,6 @@ class SessionDecisionHistory extends StatelessWidget {
     );
   }
 }
-
 
 class SessionSummaryCard extends StatelessWidget {
   const SessionSummaryCard({
@@ -865,7 +898,8 @@ class SessionSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final totalItems = groupedResult.groups.fold<int>(0, (sum, group) => sum + group.count);
+    final totalItems =
+        groupedResult.groups.fold<int>(0, (sum, group) => sum + group.count);
     final decidedItems = decisions.length;
     final counts = <DecisionCategory, int>{
       for (final category in DecisionCategory.values) category: 0,
@@ -873,7 +907,8 @@ class SessionSummaryCard extends StatelessWidget {
     for (final decision in decisions) {
       counts.update(decision.category, (value) => value + 1, ifAbsent: () => 1);
     }
-    final hasMoneyTotal = moneyOnTableLowUsd != null && moneyOnTableHighUsd != null;
+    final hasMoneyTotal =
+        moneyOnTableLowUsd != null && moneyOnTableHighUsd != null;
 
     return Card(
       elevation: 0,
@@ -884,16 +919,20 @@ class SessionSummaryCard extends StatelessWidget {
           children: [
             Text(
               'Sprint summary',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text(totalItems == 0 ? '$decidedItems decisions logged' : '$decidedItems/$totalItems items decided'),
+            Text(totalItems == 0
+                ? '$decidedItems decisions logged'
+                : '$decidedItems/$totalItems items decided'),
             if (hasMoneyTotal) ...[
               const SizedBox(height: 8),
               Text(
                 'Money still on the table: '
                 '\$${moneyOnTableLowUsd!.toStringAsFixed(0)}–${moneyOnTableHighUsd!.toStringAsFixed(0)}',
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
             const SizedBox(height: 12),
@@ -914,7 +953,8 @@ class SessionSummaryCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 'Listing pages',
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               ...publicListingUrlsByGroupId.entries.map(
@@ -926,7 +966,8 @@ class SessionSummaryCard extends StatelessWidget {
             ],
             if (decisions.isEmpty && publicListingUrlsByGroupId.isEmpty) ...[
               const SizedBox(height: 8),
-              const Text('Log a decision or create a listing page to start your summary.'),
+              const Text(
+                  'Log a decision or create a listing page to start your summary.'),
             ],
           ],
         ),
@@ -965,7 +1006,8 @@ class _DecisionNoteSheetState extends State<_DecisionNoteSheet> {
     final resolved = widget.progress;
     final remainingRaw = widget.group.count - resolved;
     final remaining = remainingRaw < 0 ? 0 : remainingRaw;
-    final progressValue = widget.group.count == 0 ? 0.0 : resolved / widget.group.count;
+    final progressValue =
+        widget.group.count == 0 ? 0.0 : resolved / widget.group.count;
     return Padding(
       padding: EdgeInsets.only(
         left: 24,
@@ -983,7 +1025,8 @@ class _DecisionNoteSheetState extends State<_DecisionNoteSheet> {
               const SizedBox(width: 8),
               Text(
                 widget.category.label,
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -1000,12 +1043,12 @@ class _DecisionNoteSheetState extends State<_DecisionNoteSheet> {
                   borderRadius: BorderRadius.circular(999),
                   child: LinearProgressIndicator(
                     value: progressValue.clamp(0.0, 1.0),
-                    backgroundColor: theme.colorScheme.surfaceVariant,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              Text('${resolved}/${widget.group.count} sorted'),
+              Text('$resolved/${widget.group.count} sorted'),
             ],
           ),
           if (remaining > 0) ...[
@@ -1028,13 +1071,15 @@ class _DecisionNoteSheetState extends State<_DecisionNoteSheet> {
               hintText: 'e.g. Boxed kids books for library drop-off',
               border: OutlineInputBorder(),
             ),
-            onSubmitted: (_) => Navigator.of(context).pop(_controller.text.trim()),
+            onSubmitted: (_) =>
+                Navigator.of(context).pop(_controller.text.trim()),
           ),
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerRight,
             child: FilledButton(
-              onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(_controller.text.trim()),
               child: const Text('Save decision'),
             ),
           ),
@@ -1057,14 +1102,18 @@ class _TimerCompleteSheet extends StatelessWidget {
         children: [
           Text(
             'Time! Celebrate the wins',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           const Text('• Log your decisions for each highlighted group.'),
           const SizedBox(height: 8),
           const Text('• If something feels sticky, tap Maybe and move on.'),
           const SizedBox(height: 8),
-          const Text('• Finish strong with the summary screen when you are ready.'),
+          const Text(
+              '• Finish strong with the summary screen when you are ready.'),
           const SizedBox(height: 16),
           Align(
             alignment: Alignment.centerRight,

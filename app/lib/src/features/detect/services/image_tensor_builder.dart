@@ -14,7 +14,7 @@ class ImageTensorBuilder {
   final List<int> shape;
 
   /// Target tensor data type.
-  final TfLiteType type;
+  final TensorType type;
 
   /// Resizes [image] to the tensor dimensions and returns the nested list
   /// structure expected by `Interpreter.run`.
@@ -42,16 +42,16 @@ class ImageTensorBuilder {
           final pixel = resized.getPixel(x, y);
           final values = <num>[];
           if (channels >= 1) {
-            values.add(_normalizeValue(img.getRed(pixel).toDouble()));
+            values.add(_normalizeValue(pixel.r.toDouble()));
           }
           if (channels >= 2) {
-            values.add(_normalizeValue(img.getGreen(pixel).toDouble()));
+            values.add(_normalizeValue(pixel.g.toDouble()));
           }
           if (channels >= 3) {
-            values.add(_normalizeValue(img.getBlue(pixel).toDouble()));
+            values.add(_normalizeValue(pixel.b.toDouble()));
           }
           if (channels >= 4) {
-            values.add(_normalizeValue(img.getAlpha(pixel).toDouble()));
+            values.add(_normalizeValue(pixel.a.toDouble()));
           }
           return values;
         });
@@ -61,18 +61,18 @@ class ImageTensorBuilder {
 
   num _normalizeValue(double value) {
     switch (type) {
-      case TfLiteType.float32:
-      case TfLiteType.float16:
+      case TensorType.float32:
+      case TensorType.float16:
         return value / 255.0;
-      case TfLiteType.int8:
-      case TfLiteType.uint8:
-      case TfLiteType.int16:
-      case TfLiteType.int32:
-      case TfLiteType.int64:
+      case TensorType.int8:
+      case TensorType.uint8:
+      case TensorType.int16:
+      case TensorType.int32:
+      case TensorType.int64:
         return value.round();
-      case TfLiteType.uint16:
+      case TensorType.uint16:
         return value.round();
-      case TfLiteType.bool:
+      case TensorType.boolean:
         return value > 0 ? 1 : 0;
       default:
         return value.round();

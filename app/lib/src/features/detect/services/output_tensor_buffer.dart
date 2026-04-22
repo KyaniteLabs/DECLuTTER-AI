@@ -12,12 +12,12 @@ class OutputTensorBuffer {
 
   final int index;
   final List<int> shape;
-  final TfLiteType type;
+  final TensorType type;
 
   /// Nested list structure passed to `Interpreter.run` for this tensor.
   final Object data;
 
-  static Object _createStorage(TfLiteType type, List<int> shape) {
+  static Object _createStorage(TensorType type, List<int> shape) {
     if (shape.isEmpty) {
       return _zeroValue(type);
     }
@@ -32,31 +32,31 @@ class OutputTensorBuffer {
     return List.generate(length, (_) => _createStorage(type, tail));
   }
 
-  static Object _createLeaf(TfLiteType type, int length) {
+  static Object _createLeaf(TensorType type, int length) {
     switch (type) {
-      case TfLiteType.float32:
-      case TfLiteType.float16:
+      case TensorType.float32:
+      case TensorType.float16:
         return List<double>.filled(length, 0.0);
-      case TfLiteType.int8:
-      case TfLiteType.uint8:
-      case TfLiteType.int16:
-      case TfLiteType.uint16:
-      case TfLiteType.int32:
-      case TfLiteType.int64:
+      case TensorType.int8:
+      case TensorType.uint8:
+      case TensorType.int16:
+      case TensorType.uint16:
+      case TensorType.int32:
+      case TensorType.int64:
         return List<int>.filled(length, 0);
-      case TfLiteType.bool:
+      case TensorType.boolean:
         return List<bool>.filled(length, false);
       default:
         return List<dynamic>.filled(length, _zeroValue(type));
     }
   }
 
-  static Object _zeroValue(TfLiteType type) {
+  static Object _zeroValue(TensorType type) {
     switch (type) {
-      case TfLiteType.float32:
-      case TfLiteType.float16:
+      case TensorType.float32:
+      case TensorType.float16:
         return 0.0;
-      case TfLiteType.bool:
+      case TensorType.boolean:
         return false;
       default:
         return 0;

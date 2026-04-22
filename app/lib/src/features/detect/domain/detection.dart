@@ -27,7 +27,8 @@ class Detection {
     if (label.isEmpty) {
       return 'Unknown';
     }
-    final words = label.split(RegExp(r'[_\s]+')).where((word) => word.isNotEmpty);
+    final words =
+        label.split(RegExp(r'[_\s]+')).where((word) => word.isNotEmpty);
     return words
         .map((word) => word[0].toUpperCase() + word.substring(1))
         .join(' ');

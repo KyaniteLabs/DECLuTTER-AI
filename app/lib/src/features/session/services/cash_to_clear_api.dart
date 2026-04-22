@@ -54,7 +54,9 @@ class CashToClearApiClient {
     final response = await _requestJson(
       method: 'POST',
       path: '/sessions',
-      body: imageStorageKey == null ? null : {'image_storage_key': imageStorageKey},
+      body: imageStorageKey == null
+          ? null
+          : {'image_storage_key': imageStorageKey},
     );
     return CashToClearSessionDto.fromJson(response);
   }
@@ -102,7 +104,8 @@ class CashToClearApiClient {
   }
 
   Future<CashToClearSessionDto> getSession(String sessionId) async {
-    final response = await _requestJson(method: 'GET', path: '/sessions/$sessionId');
+    final response =
+        await _requestJson(method: 'GET', path: '/sessions/$sessionId');
     return CashToClearSessionDto.fromJson(response);
   }
 
@@ -112,10 +115,12 @@ class CashToClearApiClient {
     Map<String, dynamic>? body,
   }) async {
     if (!isConfigured) {
-      throw const CashToClearApiException('Cash-to-Clear backend is not configured.');
+      throw const CashToClearApiException(
+          'Cash-to-Clear backend is not configured.');
     }
 
-    final request = await _httpClient.openUrl(method, Uri.parse('$baseUrl$path'));
+    final request =
+        await _httpClient.openUrl(method, Uri.parse('$baseUrl$path'));
     request.headers.contentType = ContentType.json;
     request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_idToken');
     request.headers.set('X-Firebase-AppCheck', _appCheckToken);
@@ -126,13 +131,17 @@ class CashToClearApiClient {
 
     final response = await request.close();
     final responseBody = await response.transform(utf8.decoder).join();
-    final decoded = responseBody.isEmpty ? <String, dynamic>{} : jsonDecode(responseBody);
-    final json = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+    final decoded =
+        responseBody.isEmpty ? <String, dynamic>{} : jsonDecode(responseBody);
+    final json =
+        decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final detail = json['detail'];
       throw CashToClearApiException(
-        detail is String ? detail : 'Backend request failed with status ${response.statusCode}.',
+        detail is String
+            ? detail
+            : 'Backend request failed with status ${response.statusCode}.',
       );
     }
 

@@ -29,7 +29,8 @@ class DetectionGroup {
     if (detections.isEmpty) {
       return 0;
     }
-    final total = detections.fold<double>(0, (sum, detection) => sum + detection.confidence);
+    final total = detections.fold<double>(
+        0, (sum, detection) => sum + detection.confidence);
     return total / detections.length;
   }
 

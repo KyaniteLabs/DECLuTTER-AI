@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, Platform;
-import 'dart:typed_data';
-import 'dart:ui' show Rect, Size;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
-import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../domain/detection.dart';
 import 'detection_interpreter.dart';
@@ -21,7 +18,6 @@ import 'output_tensor_buffer.dart';
 /// returning mock detections from a JSON asset. This keeps the UI plumbing and
 /// async flow realistic for the MVP.
 class DetectorService {
-
   static const Duration _mockInferenceDuration = Duration(milliseconds: 120);
 
   DetectorService({
@@ -44,7 +40,7 @@ class DetectorService {
 
   bool get _isMobilePlatform {
     if (_isMobileOverride != null) {
-      return _isMobileOverride!;
+      return _isMobileOverride;
     }
     if (kIsWeb) {
       return false;
@@ -71,7 +67,6 @@ class DetectorService {
       return;
     }
 
-
     if (_providedInterpreter != null) {
       _interpreter = _providedInterpreter;
       _useMockDetections = false;
@@ -81,12 +76,13 @@ class DetectorService {
 
     if (_isMobilePlatform) {
       try {
-        final interpreter = await TfliteDetectionInterpreter.fromAsset('model/detector.tflite');
+        final interpreter =
+            await TfliteDetectionInterpreter.fromAsset('model/detector.tflite');
         _interpreter = interpreter;
         _useMockDetections = false;
-
       } catch (error) {
-        debugPrint('DetectorService: failed to load model, falling back to mock data: $error');
+        debugPrint(
+            'DetectorService: failed to load model, falling back to mock data: $error');
         _useMockDetections = true;
       }
     } else {
@@ -109,7 +105,8 @@ class DetectorService {
 
     final file = File(imagePath);
     if (!await file.exists()) {
-      throw FlutterError('Image at $imagePath does not exist. Capture before analyzing.');
+      throw FlutterError(
+          'Image at $imagePath does not exist. Capture before analyzing.');
     }
 
     final bytes = await file.readAsBytes();
@@ -138,7 +135,8 @@ class DetectorService {
         inferenceTime: stopwatch.elapsed,
       );
     } catch (error) {
-      debugPrint('DetectorService: inference failure ($error); using mock data.');
+      debugPrint(
+          'DetectorService: inference failure ($error); using mock data.');
       stopwatch.stop();
       return _mockDetectionResult(originalSize);
     }
@@ -173,7 +171,8 @@ class DetectorService {
   }
 
   Future<List<Detection>> _loadMockDetections() async {
-    final jsonString = await _bundle.loadString('assets/prompts/debug_sample_detections.json');
+    final jsonString =
+        await _bundle.loadString('assets/prompts/debug_sample_detections.json');
     final dynamic data = jsonDecode(jsonString);
     if (data is! Map<String, dynamic>) {
       return const [];
@@ -183,28 +182,34 @@ class DetectorService {
       return const [];
     }
 
-    return detectionsData.map((dynamic entry) {
-      if (entry is! Map<String, dynamic>) {
-        return null;
-      }
-      final rawLabel = (entry['label'] as String?) ?? 'unknown';
-      final label = _resolveLabel(rawLabel);
-      final confidence = (entry['confidence'] as num?)?.toDouble() ?? 0;
-      final box = entry['box'];
-      if (box is! Map<String, dynamic>) {
-        return Detection(label: label, confidence: confidence, boundingBox: const Rect.fromLTWH(0, 0, 0, 0));
-      }
-      final left = (box['left'] as num?)?.toDouble() ?? 0;
-      final top = (box['top'] as num?)?.toDouble() ?? 0;
-      final right = (box['right'] as num?)?.toDouble() ?? left;
-      final bottom = (box['bottom'] as num?)?.toDouble() ?? top;
-      return Detection(
-        label: label,
-        confidence: confidence,
-        boundingBox: Rect.fromLTRB(left, top, right, bottom),
-      ).clamp();
-    }).whereType<Detection>().toList(growable: false);
-}
+    return detectionsData
+        .map((dynamic entry) {
+          if (entry is! Map<String, dynamic>) {
+            return null;
+          }
+          final rawLabel = (entry['label'] as String?) ?? 'unknown';
+          final label = _resolveLabel(rawLabel);
+          final confidence = (entry['confidence'] as num?)?.toDouble() ?? 0;
+          final box = entry['box'];
+          if (box is! Map<String, dynamic>) {
+            return Detection(
+                label: label,
+                confidence: confidence,
+                boundingBox: const Rect.fromLTWH(0, 0, 0, 0));
+          }
+          final left = (box['left'] as num?)?.toDouble() ?? 0;
+          final top = (box['top'] as num?)?.toDouble() ?? 0;
+          final right = (box['right'] as num?)?.toDouble() ?? left;
+          final bottom = (box['bottom'] as num?)?.toDouble() ?? top;
+          return Detection(
+            label: label,
+            confidence: confidence,
+            boundingBox: Rect.fromLTRB(left, top, right, bottom),
+          ).clamp();
+        })
+        .whereType<Detection>()
+        .toList(growable: false);
+  }
 
   String _resolveLabel(String rawLabel) {
     final index = int.tryParse(rawLabel);
@@ -222,7 +227,8 @@ class DetectorService {
 
     final inputTensor = interpreter.inputShape;
     final inputType = interpreter.inputType;
-    final input = ImageTensorBuilder(shape: inputTensor, type: inputType).build(image);
+    final input =
+        ImageTensorBuilder(shape: inputTensor, type: inputType).build(image);
 
     final outputBuffers = _prepareOutputBuffers(interpreter);
     final outputs = <int, Object>{
@@ -234,7 +240,8 @@ class DetectorService {
     return _parseDetections(outputBuffers);
   }
 
-  List<OutputTensorBuffer> _prepareOutputBuffers(DetectionInterpreter interpreter) {
+  List<OutputTensorBuffer> _prepareOutputBuffers(
+      DetectionInterpreter interpreter) {
     final buffers = <OutputTensorBuffer>[];
     for (var i = 0; i < interpreter.outputCount; i++) {
       final shape = interpreter.outputShape(i);
@@ -267,11 +274,18 @@ class DetectorService {
       }
 
       final shape = buffer.shape;
-      if (boxesBuffer == null && shape.length == 3 && shape.first == 1 && shape.last == 4) {
+      if (boxesBuffer == null &&
+          shape.length == 3 &&
+          shape.first == 1 &&
+          shape.last == 4) {
         boxesBuffer = buffer;
-      } else if (classesBuffer == null && shape.length == 2 && shape.first == 1) {
+      } else if (classesBuffer == null &&
+          shape.length == 2 &&
+          shape.first == 1) {
         classesBuffer = buffer;
-      } else if (scoresBuffer == null && shape.length == 2 && shape.first == 1) {
+      } else if (scoresBuffer == null &&
+          shape.length == 2 &&
+          shape.first == 1) {
         scoresBuffer = buffer;
       } else if (countBuffer == null && shape.length == 1) {
         countBuffer = buffer;
@@ -282,13 +296,20 @@ class DetectorService {
       return const [];
     }
 
-    final boxes = _castToBoxList(boxesBuffer!.data);
-    final classes = _castToDoubleList(classesBuffer!.data);
-    final scores = _castToDoubleList(scoresBuffer!.data);
-    final total = countBuffer != null ? _readFirstDouble(countBuffer!.data)?.round() ?? boxes.length : boxes.length;
+    final boxes = _castToBoxList(boxesBuffer.data);
+    final classes = _castToDoubleList(classesBuffer.data);
+    final scores = _castToDoubleList(scoresBuffer.data);
+    final total = countBuffer != null
+        ? _readFirstDouble(countBuffer.data)?.round() ?? boxes.length
+        : boxes.length;
 
     final detections = <Detection>[];
-    for (var i = 0; i < total && i < boxes.length && i < classes.length && i < scores.length; i++) {
+    for (var i = 0;
+        i < total &&
+            i < boxes.length &&
+            i < classes.length &&
+            i < scores.length;
+        i++) {
       final box = boxes[i];
       if (box.length < 4) {
         continue;
@@ -300,7 +321,9 @@ class DetectorService {
       final right = box[3].clamp(0.0, 1.0);
       final score = scores[i].clamp(0.0, 1.0);
       final classIndex = classes[i].round();
-      final label = classIndex >= 0 && classIndex < _labels.length ? _labels[classIndex] : classIndex.toString();
+      final label = classIndex >= 0 && classIndex < _labels.length
+          ? _labels[classIndex]
+          : classIndex.toString();
 
       detections.add(
         Detection(
@@ -317,7 +340,8 @@ class DetectorService {
   List<List<double>> _castToBoxList(Object data) {
     final batch = _unwrapBatch(data);
     return batch
-        .map((entry) => _toIterable(entry).map(_asDouble).toList(growable: false))
+        .map((entry) =>
+            _toIterable(entry).map(_asDouble).toList(growable: false))
         .where((entry) => entry.isNotEmpty)
         .toList(growable: false);
   }
