@@ -362,6 +362,14 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
               decisions: _decisions,
               groupedResult: widget.groupedResult,
             ),
+            const SizedBox(height: 16),
+            SessionSummaryCard(
+              decisions: _decisions,
+              groupedResult: widget.groupedResult,
+              moneyOnTableLowUsd: _moneyOnTableLowUsd,
+              moneyOnTableHighUsd: _moneyOnTableHighUsd,
+              publicListingUrlsByGroupId: _publicListingUrlsByGroupId,
+            ),
           ],
         ),
       ),
@@ -833,6 +841,96 @@ class SessionDecisionHistory extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+class SessionSummaryCard extends StatelessWidget {
+  const SessionSummaryCard({
+    super.key,
+    required this.decisions,
+    required this.groupedResult,
+    required this.moneyOnTableLowUsd,
+    required this.moneyOnTableHighUsd,
+    required this.publicListingUrlsByGroupId,
+  });
+
+  final List<SessionDecision> decisions;
+  final GroupedDetectionResult groupedResult;
+  final double? moneyOnTableLowUsd;
+  final double? moneyOnTableHighUsd;
+  final Map<String, String> publicListingUrlsByGroupId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final totalItems = groupedResult.groups.fold<int>(0, (sum, group) => sum + group.count);
+    final decidedItems = decisions.length;
+    final counts = <DecisionCategory, int>{
+      for (final category in DecisionCategory.values) category: 0,
+    };
+    for (final decision in decisions) {
+      counts.update(decision.category, (value) => value + 1, ifAbsent: () => 1);
+    }
+    final hasMoneyTotal = moneyOnTableLowUsd != null && moneyOnTableHighUsd != null;
+
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Sprint summary',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(totalItems == 0 ? '$decidedItems decisions logged' : '$decidedItems/$totalItems items decided'),
+            if (hasMoneyTotal) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Money still on the table: '
+                '\$${moneyOnTableLowUsd!.toStringAsFixed(0)}–${moneyOnTableHighUsd!.toStringAsFixed(0)}',
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: DecisionCategory.values
+                  .where((category) => (counts[category] ?? 0) > 0)
+                  .map(
+                    (category) => Chip(
+                      avatar: Icon(category.icon),
+                      label: Text('${category.label}: ${counts[category]}'),
+                    ),
+                  )
+                  .toList(),
+            ),
+            if (publicListingUrlsByGroupId.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Listing pages',
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...publicListingUrlsByGroupId.entries.map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: SelectableText(entry.value),
+                ),
+              ),
+            ],
+            if (decisions.isEmpty && publicListingUrlsByGroupId.isEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('Log a decision or create a listing page to start your summary.'),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

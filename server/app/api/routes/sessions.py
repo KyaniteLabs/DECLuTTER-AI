@@ -7,7 +7,9 @@ from fastapi import APIRouter, HTTPException, Request, status
 from schemas.public_listing import PublicListingResponse
 
 from schemas.session import (
+    CashToClearSessionHistoryResponse,
     CashToClearSessionResponse,
+    CashToClearSessionSummaryResponse,
     SessionCreateRequest,
     SessionDecisionRequest,
     SessionDecisionResponse,
@@ -24,6 +26,12 @@ def get_cash_to_clear_service() -> CashToClearSessionStore:
     return CashToClearSessionStore()
 
 
+
+
+@router.get('', response_model=CashToClearSessionHistoryResponse)
+def list_sessions(request: Request) -> CashToClearSessionHistoryResponse:
+    return get_cash_to_clear_service().list_sessions(_owner_uid(request))
+
 @router.post('', response_model=CashToClearSessionResponse)
 def create_session(
     request: Request,
@@ -33,6 +41,17 @@ def create_session(
         _owner_uid(request),
         payload or SessionCreateRequest(),
     )
+
+
+@router.get('/{session_id}/summary', response_model=CashToClearSessionSummaryResponse)
+def get_session_summary(request: Request, session_id: str) -> CashToClearSessionSummaryResponse:
+    try:
+        return get_cash_to_clear_service().get_session_summary(_owner_uid(request), session_id)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc).strip("'"),
+        ) from exc
 
 
 @router.get('/{session_id}', response_model=CashToClearSessionResponse)

@@ -50,3 +50,39 @@ class CashToClearSessionResponse(BaseModel):
     items: list[SessionItemResponse] = Field(default_factory=list)
     money_on_table_low_usd: float = Field(ge=0)
     money_on_table_high_usd: float = Field(ge=0)
+
+
+class SessionPublicListingSummary(BaseModel):
+    item_id: str
+    listing_id: str
+    public_url: str
+    title: str
+
+
+class CashToClearSessionSummaryResponse(BaseModel):
+    session_id: str
+    image_storage_key: str | None
+    created_at: datetime
+    total_items: int = Field(ge=0)
+    decided_items: int = Field(ge=0)
+    decision_counts: dict[str, int]
+    total_estimated_low_usd: float = Field(ge=0)
+    total_estimated_high_usd: float = Field(ge=0)
+    money_on_table_low_usd: float = Field(ge=0)
+    money_on_table_high_usd: float = Field(ge=0)
+    public_listings: list[SessionPublicListingSummary] = Field(default_factory=list)
+
+
+class CashToClearSessionHistoryItem(BaseModel):
+    session_id: str
+    image_storage_key: str | None
+    created_at: datetime
+    total_items: int = Field(ge=0)
+    decided_items: int = Field(ge=0)
+    money_on_table_low_usd: float = Field(ge=0)
+    money_on_table_high_usd: float = Field(ge=0)
+    public_listing_count: int = Field(ge=0)
+
+
+class CashToClearSessionHistoryResponse(BaseModel):
+    sessions: list[CashToClearSessionHistoryItem] = Field(default_factory=list)

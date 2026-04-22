@@ -77,7 +77,9 @@ Protected session endpoints:
 - `POST /sessions` — create a Cash-to-Clear session.
 - `POST /sessions/{session_id}/items` — add a detected item and persist valuation + listing draft.
 - `POST /sessions/{session_id}/decisions` — record keep/donate/trash/recycle/relocate/maybe/sell decisions.
+- `GET /sessions` — list the authenticated user’s session history with decision/progress totals.
 - `GET /sessions/{session_id}` — retrieve durable session state and money-on-the-table totals.
+- `GET /sessions/{session_id}/summary` — retrieve finish-sprint counts, estimates, and public listing links.
 - `POST /sessions/{session_id}/items/{item_id}/public-listing` — generate a standalone HTML listing page for users who do not want marketplace publishing.
 
 Public listing endpoints:

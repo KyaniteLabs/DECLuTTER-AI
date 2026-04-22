@@ -283,6 +283,47 @@ void main() {
       expect(button.onPressed, isNull);
     });
   });
+
+  group('SessionSummaryCard', () {
+    testWidgets('summarizes decisions and listing links', (tester) async {
+      final groups = [
+        buildGroup(id: 'group_1', label: 'books', count: 2),
+      ];
+      final decisions = [
+        SessionDecision(
+          groupId: 'group_1',
+          groupLabel: 'Books (2 items)',
+          groupTotal: 2,
+          category: DecisionCategory.sell,
+          createdAt: DateTime(2026),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: SessionSummaryCard(
+              decisions: decisions,
+              groupedResult: buildGroupedResult(groups),
+              moneyOnTableLowUsd: 12,
+              moneyOnTableHighUsd: 30,
+              publicListingUrlsByGroupId: const {
+                'group_1': 'https://api.example.com/public/listings/pub_1',
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Sprint summary'), findsOneWidget);
+      expect(find.text('1/2 items decided'), findsOneWidget);
+      expect(find.text(r'Money still on the table: $12–30'), findsOneWidget);
+      expect(find.text('Sell: 1'), findsOneWidget);
+      expect(find.text('Listing pages'), findsOneWidget);
+      expect(find.text('https://api.example.com/public/listings/pub_1'), findsOneWidget);
+    });
+  });
+
 }
 
 void _noop(String _) {}
