@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 enum DecisionCategory {
   keep,
+  sell,
   donate,
   trash,
   relocate,
@@ -13,8 +14,10 @@ extension DecisionCategoryX on DecisionCategory {
     switch (this) {
       case DecisionCategory.keep:
         return 'Keep';
+      case DecisionCategory.sell:
+        return 'Sell';
       case DecisionCategory.donate:
-        return 'Donate / Sell';
+        return 'Donate';
       case DecisionCategory.trash:
         return 'Trash';
       case DecisionCategory.relocate:
@@ -28,6 +31,8 @@ extension DecisionCategoryX on DecisionCategory {
     switch (this) {
       case DecisionCategory.keep:
         return Icons.favorite_outline;
+      case DecisionCategory.sell:
+        return Icons.sell_outlined;
       case DecisionCategory.donate:
         return Icons.volunteer_activism_outlined;
       case DecisionCategory.trash:
@@ -43,8 +48,10 @@ extension DecisionCategoryX on DecisionCategory {
     switch (this) {
       case DecisionCategory.keep:
         return scheme.primaryContainer;
-      case DecisionCategory.donate:
+      case DecisionCategory.sell:
         return scheme.secondaryContainer;
+      case DecisionCategory.donate:
+        return scheme.tertiaryContainer;
       case DecisionCategory.trash:
         return scheme.errorContainer;
       case DecisionCategory.relocate:
@@ -58,8 +65,10 @@ extension DecisionCategoryX on DecisionCategory {
     switch (this) {
       case DecisionCategory.keep:
         return scheme.onPrimaryContainer;
-      case DecisionCategory.donate:
+      case DecisionCategory.sell:
         return scheme.onSecondaryContainer;
+      case DecisionCategory.donate:
+        return scheme.onTertiaryContainer;
       case DecisionCategory.trash:
         return scheme.onErrorContainer;
       case DecisionCategory.relocate:
