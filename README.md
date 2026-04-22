@@ -91,7 +91,7 @@ cd server
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
-uvicorn app.main:app --reload
+PYTHONPATH=app uvicorn app.main:app --reload
 ```
 
 Run backend tests:
@@ -101,3 +101,8 @@ cd server
 source .venv/bin/activate
 pytest
 ```
+
+For same-day backend launch/deploy steps, see:
+
+- `server/README.md` — backend environment profiles, Docker build, and smoke checks.
+- `docs/launch/SAME_DAY_LAUNCH_CHECKLIST.md` — private demo vs public production gate.

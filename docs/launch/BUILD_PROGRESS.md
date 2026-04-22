@@ -23,12 +23,14 @@ This file tracks implementation progress against `DECLUTTER_AI_2026_LAUNCH_PLAN_
 - ✅ WP6 (starter): comps-based valuation service with confidence + source metadata.
 - ✅ WP8/WP9 (starter): listing draft generation + mock eBay publish/export flow.
 - ✅ Launch ops helper: `/health/readiness` endpoint reports production dependency readiness from environment.
+- ✅ Same-day launch hardening: backend CORS config, app factory, Dockerfile, env template, CI, and launch checklist.
 
 ## Next implementation steps
 
-1. WP3: provision Firebase Admin credentials + production token validation smoke tests.
-2. WP4: replace local signed-upload stub with cloud object storage + scanner integration.
-3. WP5: replace mock structured adapter with real multimodal model inference + eval set.
-4. WP6: connect live eBay comps retrieval and confidence calibration metrics.
-5. WP8/WP9: OAuth connection, policy checks, and real eBay publish pipeline.
-6. Ops: wire CI/CD to fail deploy when `/health/readiness` checks are not satisfied.
+1. Ops: deploy the backend container using `server/.env.example` as the host-secret template.
+2. WP3: provision Firebase Admin credentials + production token validation smoke tests.
+3. WP4: replace local signed-upload stub with cloud object storage + scanner integration.
+4. WP5: replace mock structured adapter with real multimodal model inference + eval set.
+5. WP6: connect live eBay comps retrieval and confidence calibration metrics.
+6. WP8/WP9: OAuth connection, policy checks, and real eBay publish pipeline.
+7. Ops: wire deploy host gates to fail deploy when `/health/readiness` checks are not satisfied.

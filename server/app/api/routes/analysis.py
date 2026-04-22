@@ -1,4 +1,6 @@
-from fastapi import APIRouter, File, UploadFile
+from functools import lru_cache
+
+from fastapi import APIRouter, Depends, File, UploadFile
 
 from schemas.analysis import (
     AnalysisRequest,
@@ -20,7 +22,11 @@ def build_image_intake_service() -> ImageIntakeService:
     return ImageIntakeService(storage=create_storage_adapter_from_env())
 
 
-intake_service = build_image_intake_service()
+@lru_cache(maxsize=1)
+def get_image_intake_service() -> ImageIntakeService:
+    return build_image_intake_service()
+
+
 analysis_adapter = MockStructuredAnalysisAdapter()
 upload_adapter = LocalSignedUploadAdapter()
 
@@ -32,8 +38,11 @@ def create_intake_session() -> IntakeSessionResponse:
 
 
 @router.post("/intake", response_model=ImageIntakeResponse)
-async def intake_image(image: UploadFile = File(...)) -> ImageIntakeResponse:
-    result = await intake_service.intake(image)
+async def intake_image(
+    image: UploadFile = File(...),
+    service: ImageIntakeService = Depends(get_image_intake_service),
+) -> ImageIntakeResponse:
+    result = await service.intake(image)
     return ImageIntakeResponse(**result.__dict__)
 
 
