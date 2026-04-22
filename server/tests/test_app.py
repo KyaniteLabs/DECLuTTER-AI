@@ -82,7 +82,11 @@ def test_launch_status_reports_backend_scaffold_limitations() -> None:
     body = response.json()
     assert body['service'] == 'DECLuTTER-AI API'
     assert body['launch_profile'] == 'backend_scaffold'
-    assert body['production_ready'] is False
+    assert body['checks']['firebase_admin_configured'] is False
+    assert body['checks']['cloud_storage_configured'] is False
+    assert body['checks']['multimodal_model_configured'] is False
+    assert body['checks']['ebay_api_configured'] is False
+    assert body['production_ready'] == all(body['checks'].values())
     assert 'deterministic starter adapters' in ' '.join(body['limitations'])
 
 
