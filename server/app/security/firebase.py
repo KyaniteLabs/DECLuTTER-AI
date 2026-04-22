@@ -14,11 +14,9 @@ class FirebaseSecuritySettings:
     @classmethod
     def from_env(cls) -> "FirebaseSecuritySettings":
         return cls(
-            auth_mode=os.getenv("DECLUTTER_AUTH_MODE", "scaffold").strip().lower(),
-            accepted_id_token=os.getenv("DECLUTTER_TEST_ID_TOKEN", "test-user-token"),
-            accepted_app_check_token=os.getenv(
-                "DECLUTTER_TEST_APP_CHECK_TOKEN", "test-app-check-token"
-            ),
+            auth_mode=os.getenv("DECLUTTER_AUTH_MODE", "strict").strip().lower(),
+            accepted_id_token=os.getenv("DECLUTTER_TEST_ID_TOKEN", ""),
+            accepted_app_check_token=os.getenv("DECLUTTER_TEST_APP_CHECK_TOKEN", ""),
         )
 
 
@@ -39,6 +37,10 @@ class FirebaseTokenVerifier:
             return {"uid": "local-dev"}
 
         if self.settings.auth_mode == "scaffold":
+            self._require_scaffold_token(
+                self.settings.accepted_id_token,
+                "DECLUTTER_TEST_ID_TOKEN",
+            )
             if token != self.settings.accepted_id_token:
                 raise ValueError("Invalid Firebase ID token.")
             return {"uid": "scaffold-user"}
@@ -53,6 +55,10 @@ class FirebaseTokenVerifier:
             return {"app_id": "local-dev"}
 
         if self.settings.auth_mode == "scaffold":
+            self._require_scaffold_token(
+                self.settings.accepted_app_check_token,
+                "DECLUTTER_TEST_APP_CHECK_TOKEN",
+            )
             if token != self.settings.accepted_app_check_token:
                 raise ValueError("Invalid Firebase App Check token.")
             return {"app_id": "scaffold-app"}
@@ -61,6 +67,13 @@ class FirebaseTokenVerifier:
             return self._verify_app_check_token_strict(token)
 
         raise RuntimeError(f"Unsupported DECLUTTER_AUTH_MODE: {self.settings.auth_mode}")
+
+    @staticmethod
+    def _require_scaffold_token(token: str, env_name: str) -> None:
+        if not token:
+            raise RuntimeError(
+                f"{env_name} must be set when DECLUTTER_AUTH_MODE=scaffold."
+            )
 
     @staticmethod
     def _verify_id_token_strict(token: str) -> dict[str, Any]:

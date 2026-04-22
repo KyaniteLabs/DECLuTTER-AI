@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile, status
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -70,7 +70,17 @@ class ImageIntakeService:
                 detail="Image exceeds the 10MB upload limit.",
             )
 
-        sanitized_payload, extension = self._strip_metadata(raw_payload, image.content_type)
+        try:
+            sanitized_payload, extension = self._strip_metadata(
+                raw_payload,
+                image.content_type,
+            )
+        except (OSError, UnidentifiedImageError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Malformed or unreadable image upload.",
+            ) from exc
+
         self.scanner.scan(sanitized_payload)
         storage_key = self.storage.put(sanitized_payload, extension)
 

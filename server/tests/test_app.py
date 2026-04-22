@@ -17,6 +17,16 @@ VALID_HEADERS = {
 }
 
 
+def _clear_auth_env() -> None:
+    for key in [
+        'DECLUTTER_AUTH_MODE',
+        'DECLUTTER_TEST_ID_TOKEN',
+        'DECLUTTER_TEST_APP_CHECK_TOKEN',
+    ]:
+        os.environ.pop(key, None)
+    dependencies.get_firebase_verifier.cache_clear()
+
+
 def _build_jpeg_with_exif() -> bytes:
     buffer = io.BytesIO()
     image = Image.new('RGB', (16, 16), color='green')
@@ -26,6 +36,9 @@ def _build_jpeg_with_exif() -> bytes:
 
 def _set_auth_mode(mode: str) -> None:
     os.environ['DECLUTTER_AUTH_MODE'] = mode
+    if mode == 'scaffold':
+        os.environ['DECLUTTER_TEST_ID_TOKEN'] = 'test-user-token'
+        os.environ['DECLUTTER_TEST_APP_CHECK_TOKEN'] = 'test-app-check-token'
     dependencies.get_firebase_verifier.cache_clear()
 
 
@@ -74,6 +87,20 @@ def test_analysis_requires_auth_headers() -> None:
     assert response.status_code == 401
 
 
+def test_default_auth_mode_does_not_accept_scaffold_tokens() -> None:
+    _clear_auth_env()
+    response = client.post(
+        '/analysis/run',
+        json={'session_id': 's-1', 'image_storage_key': 'private/key.jpg'},
+        headers=VALID_HEADERS,
+    )
+    assert response.status_code == 503
+    assert (
+        response.json()['detail']
+        == 'Strict auth mode requires firebase-admin to be installed.'
+    )
+
+
 def test_analysis_scaffold() -> None:
     _set_auth_mode('scaffold')
     response = client.post(
@@ -110,6 +137,18 @@ def test_intake_strips_exif_and_stores_file(tmp_path: Path) -> None:
 
     with Image.open(saved_path) as stored:
         assert not stored.getexif()
+
+
+def test_intake_returns_400_for_malformed_image_bytes() -> None:
+    _set_auth_mode('scaffold')
+    response = client.post(
+        '/analysis/intake',
+        headers=VALID_HEADERS,
+        files={'image': ('not-really.jpg', b'not an image', 'image/jpeg')},
+    )
+
+    assert response.status_code == 400
+    assert response.json()['detail'] == 'Malformed or unreadable image upload.'
 
 
 def test_strict_mode_returns_503_when_admin_sdk_not_configured() -> None:
