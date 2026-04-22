@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import io
-import os
 from dataclasses import dataclass
-from pathlib import Path
-from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile, status
 from PIL import Image, UnidentifiedImageError
+
+from services.storage_adapter import ImageStorageAdapter, LocalImageStorageAdapter
 
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -34,23 +33,10 @@ class NoopMalwareScanner(MalwareScanner):
         _ = payload
 
 
-class LocalImageStorageAdapter:
-    def __init__(self, base_dir: str | None = None) -> None:
-        self.base_dir = Path(base_dir or os.getenv("DECLUTTER_UPLOAD_DIR", "/tmp/declutter_ai_uploads"))
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-
-    def put(self, payload: bytes, extension: str) -> str:
-        storage_key = f"intake/{uuid4().hex}.{extension}"
-        destination = self.base_dir / storage_key
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(payload)
-        return storage_key
-
-
 class ImageIntakeService:
     def __init__(
         self,
-        storage: LocalImageStorageAdapter | None = None,
+        storage: ImageStorageAdapter | None = None,
         scanner: MalwareScanner | None = None,
     ) -> None:
         self.storage = storage or LocalImageStorageAdapter()
