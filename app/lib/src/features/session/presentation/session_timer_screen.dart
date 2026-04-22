@@ -31,6 +31,7 @@ class SessionTimerScreen extends StatefulWidget {
 class _SessionTimerScreenState extends State<SessionTimerScreen> {
   final List<SessionDecision> _decisions = [];
   final Map<String, CashToClearItemDto> _remoteItemsByGroupId = {};
+  final List<_PendingRemoteDecision> _pendingRemoteDecisions = [];
   String? _selectedGroupId;
   late final CashToClearApiClient _cashToClearApi;
   String? _remoteSessionId;
@@ -102,6 +103,7 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
         _isSyncingCashToClear = false;
         _cashToClearSyncMessage = 'Cash-to-Clear values synced.';
       });
+      await _flushPendingRemoteDecisions();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -162,7 +164,21 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
   }) async {
     final sessionId = _remoteSessionId;
     final remoteItem = _remoteItemsByGroupId[group.id];
-    if (!_cashToClearApi.isConfigured || sessionId == null || remoteItem == null) {
+    if (!_cashToClearApi.isConfigured) {
+      return;
+    }
+
+    final pending = _PendingRemoteDecision(
+      groupId: group.id,
+      category: category,
+      note: note,
+    );
+
+    if (sessionId == null || remoteItem == null) {
+      _pendingRemoteDecisions.add(pending);
+      setState(() {
+        _cashToClearSyncMessage = 'Decision queued until Cash-to-Clear sync is ready.';
+      });
       return;
     }
 
@@ -172,12 +188,7 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
     });
 
     try {
-      await _cashToClearApi.recordDecision(
-        sessionId: sessionId,
-        itemId: remoteItem.itemId,
-        category: category,
-        note: note,
-      );
+      await _syncRemoteDecision(pending);
       final refreshed = await _cashToClearApi.getSession(sessionId);
       if (!mounted) return;
       setState(() {
@@ -193,6 +204,66 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
         _cashToClearSyncMessage = 'Decision saved locally; backend sync failed ($error).';
       });
     }
+  }
+
+  Future<void> _flushPendingRemoteDecisions() async {
+    if (!_cashToClearApi.isConfigured || _pendingRemoteDecisions.isEmpty) {
+      return;
+    }
+
+    final pending = List<_PendingRemoteDecision>.from(_pendingRemoteDecisions);
+    _pendingRemoteDecisions.clear();
+
+    setState(() {
+      _isSyncingCashToClear = true;
+      _cashToClearSyncMessage = 'Syncing queued decisions...';
+    });
+
+    try {
+      for (final decision in pending) {
+        if (_remoteItemsByGroupId[decision.groupId] == null) {
+          _pendingRemoteDecisions.add(decision);
+          continue;
+        }
+        await _syncRemoteDecision(decision);
+      }
+
+      final sessionId = _remoteSessionId;
+      final refreshed = sessionId == null ? null : await _cashToClearApi.getSession(sessionId);
+      if (!mounted) return;
+      setState(() {
+        if (refreshed != null) {
+          _moneyOnTableLowUsd = refreshed.moneyOnTableLowUsd;
+          _moneyOnTableHighUsd = refreshed.moneyOnTableHighUsd;
+        }
+        _isSyncingCashToClear = false;
+        _cashToClearSyncMessage = _pendingRemoteDecisions.isEmpty
+            ? 'Queued decisions synced.'
+            : 'Some decisions are still queued for sync.';
+      });
+    } catch (error) {
+      _pendingRemoteDecisions.insertAll(0, pending);
+      if (!mounted) return;
+      setState(() {
+        _isSyncingCashToClear = false;
+        _cashToClearSyncMessage = 'Decision saved locally; queued sync failed ($error).';
+      });
+    }
+  }
+
+  Future<void> _syncRemoteDecision(_PendingRemoteDecision decision) async {
+    final sessionId = _remoteSessionId;
+    final remoteItem = _remoteItemsByGroupId[decision.groupId];
+    if (sessionId == null || remoteItem == null) {
+      throw const CashToClearApiException('Remote session is not ready.');
+    }
+
+    await _cashToClearApi.recordDecision(
+      sessionId: sessionId,
+      itemId: remoteItem.itemId,
+      category: decision.category,
+      note: decision.note,
+    );
   }
 
   void _handleTimerCompleted() {
@@ -252,6 +323,18 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       ),
     );
   }
+}
+
+class _PendingRemoteDecision {
+  const _PendingRemoteDecision({
+    required this.groupId,
+    required this.category,
+    this.note,
+  });
+
+  final String groupId;
+  final DecisionCategory category;
+  final String? note;
 }
 
 class _CapturedPhotoPreview extends StatelessWidget {

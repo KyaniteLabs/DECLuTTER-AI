@@ -268,6 +268,8 @@ extension DecisionCategoryBackendValue on DecisionCategory {
     switch (this) {
       case DecisionCategory.keep:
         return 'keep';
+      case DecisionCategory.sell:
+        return 'sell';
       case DecisionCategory.donate:
         return 'donate';
       case DecisionCategory.trash:
