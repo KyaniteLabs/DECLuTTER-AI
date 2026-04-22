@@ -80,6 +80,7 @@ class OpenAICompatibleAnalysisAdapter:
         api_key: str | None = None,
         upload_dir: str | None = None,
         timeout_seconds: float = 180,
+        max_tokens: int = 256,
         transport: Callable[[str, dict[str, Any], dict[str, str], float], dict[str, Any]]
         | None = None,
     ) -> None:
@@ -101,6 +102,7 @@ class OpenAICompatibleAnalysisAdapter:
             upload_dir or os.getenv("DECLUTTER_UPLOAD_DIR", "/tmp/declutter_ai_uploads")
         )
         self.timeout_seconds = timeout_seconds
+        self.max_tokens = max_tokens
         self.transport = transport or self._post_json
 
     def run(self, image_storage_key: str) -> AnalysisResult:
@@ -153,6 +155,7 @@ class OpenAICompatibleAnalysisAdapter:
                 {"role": "user", "content": user_content},
             ],
             "temperature": 0,
+            "max_tokens": self.max_tokens,
             "response_format": {"type": "text"},
         }
 
@@ -284,11 +287,13 @@ def create_analysis_adapter_from_env() -> MockStructuredAnalysisAdapter | OpenAI
             or os.getenv("LM_STUDIO_API_KEY")
         )
         timeout_seconds = float(os.getenv("DECLUTTER_INFERENCE_TIMEOUT_SECONDS", "180"))
+        max_tokens = int(os.getenv("DECLUTTER_INFERENCE_MAX_TOKENS", "256"))
         return OpenAICompatibleAnalysisAdapter(
             base_url=base_url,
             model=model,
             api_key=api_key,
             timeout_seconds=timeout_seconds,
+            max_tokens=max_tokens,
         )
 
     return MockStructuredAnalysisAdapter()
