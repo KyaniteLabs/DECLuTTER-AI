@@ -31,6 +31,20 @@ def _clear_auth_env() -> None:
     dependencies.get_firebase_verifier.cache_clear()
 
 
+def _clear_readiness_env() -> None:
+    for key in [
+        'FIREBASE_PROJECT_ID',
+        'DECLUTTER_STORAGE_BACKEND',
+        'DECLUTTER_S3_BUCKET',
+        'DECLUTTER_STORAGE_BUCKET',
+        'DECLUTTER_CORS_ALLOW_ORIGINS',
+        'DECLUTTER_MODEL_PROVIDER',
+        'EBAY_CLIENT_ID',
+        'EBAY_CLIENT_SECRET',
+    ]:
+        os.environ.pop(key, None)
+
+
 def _build_jpeg_with_exif() -> bytes:
     buffer = io.BytesIO()
     image = Image.new('RGB', (16, 16), color='green')
@@ -52,19 +66,33 @@ def test_health() -> None:
     assert response.json()['status'] == 'ok'
 
 
+def test_root_landing_page_links_launch_surfaces() -> None:
+    response = client.get('/')
+    assert response.status_code == 200
+    assert response.headers['content-type'].startswith('text/html')
+    assert 'DECLuTTER-AI' in response.text
+    assert '/docs' in response.text
+    assert '/health/readiness' in response.text
+
+
+def test_launch_status_reports_backend_scaffold_limitations() -> None:
+    _clear_readiness_env()
+    response = client.get('/launch/status')
+    assert response.status_code == 200
+    body = response.json()
+    assert body['service'] == 'DECLuTTER-AI API'
+    assert body['launch_profile'] == 'backend_scaffold'
+    assert body['checks']['firebase_admin_configured'] is False
+    assert body['checks']['cloud_storage_configured'] is False
+    assert body['checks']['multimodal_model_configured'] is False
+    assert body['checks']['ebay_api_configured'] is False
+    assert body['production_ready'] == all(body['checks'].values())
+    assert 'deterministic starter adapters' in ' '.join(body['limitations'])
+
+
 
 def test_readiness_defaults_to_not_ready() -> None:
-    for key in [
-        'FIREBASE_PROJECT_ID',
-        'DECLUTTER_STORAGE_BACKEND',
-        'DECLUTTER_S3_BUCKET',
-        'DECLUTTER_STORAGE_BUCKET',
-        'DECLUTTER_CORS_ALLOW_ORIGINS',
-        'DECLUTTER_MODEL_PROVIDER',
-        'EBAY_CLIENT_ID',
-        'EBAY_CLIENT_SECRET',
-    ]:
-        os.environ.pop(key, None)
+    _clear_readiness_env()
 
     response = client.get('/health/readiness')
     assert response.status_code == 200
