@@ -414,6 +414,38 @@ def test_cash_to_clear_session_persists_items_decisions_and_totals(tmp_path: Pat
     assert final_body['items'][0]['decision']['decision'] == 'donate'
 
 
+
+def test_cash_to_clear_maybe_decision_removes_item_from_money_total(tmp_path: Path) -> None:
+    _set_auth_mode('scaffold')
+    os.environ['DECLUTTER_SESSION_DB_PATH'] = str(tmp_path / 'sessions.sqlite3')
+    from api.routes import sessions
+
+    sessions.get_cash_to_clear_service.cache_clear()
+
+    create = client.post('/sessions', headers=VALID_HEADERS, json={})
+    assert create.status_code == 200
+    session_id = create.json()['session_id']
+
+    add_item = client.post(
+        f'/sessions/{session_id}/items',
+        headers=VALID_HEADERS,
+        json={'label': 'electronics', 'condition': 'good'},
+    )
+    assert add_item.status_code == 200
+    item = add_item.json()
+    assert item['valuation']['estimated_low_usd'] > 0
+
+    decision = client.post(
+        f'/sessions/{session_id}/decisions',
+        headers=VALID_HEADERS,
+        json={'item_id': item['item_id'], 'decision': 'maybe'},
+    )
+    assert decision.status_code == 200
+
+    after_decision = client.get(f'/sessions/{session_id}', headers=VALID_HEADERS)
+    assert after_decision.status_code == 200
+    assert after_decision.json()['money_on_table_low_usd'] == 0
+
 def test_cash_to_clear_rejects_decision_for_unknown_item(tmp_path: Path) -> None:
     _set_auth_mode('scaffold')
     os.environ['DECLUTTER_SESSION_DB_PATH'] = str(tmp_path / 'sessions.sqlite3')

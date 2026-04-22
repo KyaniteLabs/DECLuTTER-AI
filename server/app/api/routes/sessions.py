@@ -61,3 +61,8 @@ def record_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc).strip("'"),
         ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc

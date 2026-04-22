@@ -20,7 +20,7 @@ from schemas.valuation import ValuationRequest, ValuationResponse
 from services.listing_service import ListingDraftService
 from services.valuation_service import MockCompsValuationService
 
-_NON_SELL_DECISIONS = {'donate', 'trash', 'recycle', 'keep', 'relocate'}
+_NON_SELL_DECISIONS = {'donate', 'trash', 'recycle', 'keep', 'relocate', 'maybe'}
 
 
 class CashToClearSessionStore:
