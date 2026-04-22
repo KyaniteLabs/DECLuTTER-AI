@@ -204,6 +204,10 @@ void main() {
               moneyOnTableLowUsd: 12,
               moneyOnTableHighUsd: 30,
               groupedResult: buildGroupedResult(groups),
+              publicListingUrlsByGroupId: const {
+                'group_1': 'https://api.example.com/public/listings/pub_1',
+              },
+              onCreateListingPage: _noop,
               remoteItemsByGroupId: const {
                 'group_1': CashToClearItemDto(
                   itemId: 'item_1',
@@ -229,6 +233,8 @@ void main() {
       expect(find.text('Money on the table'), findsOneWidget);
       expect(find.text(r'$12–30'), findsOneWidget);
       expect(find.textContaining('Books: \$12–30'), findsOneWidget);
+      expect(find.text('Create page for Books'), findsOneWidget);
+      expect(find.text('https://api.example.com/public/listings/pub_1'), findsOneWidget);
     });
   });
 }
