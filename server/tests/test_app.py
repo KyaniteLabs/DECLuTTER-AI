@@ -357,6 +357,71 @@ def test_public_listing_does_not_require_auth() -> None:
 
 
 
+
+def test_cash_to_clear_session_create_accepts_empty_body(tmp_path: Path) -> None:
+    _set_auth_mode('scaffold')
+    os.environ['DECLUTTER_SESSION_DB_PATH'] = str(tmp_path / 'sessions.sqlite3')
+    from api.routes import sessions
+
+    sessions.get_cash_to_clear_service.cache_clear()
+
+    response = client.post('/sessions', headers=VALID_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json()['session_id'].startswith('sess_')
+
+
+def test_cash_to_clear_sessions_are_scoped_to_authenticated_user(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    _set_auth_mode('scaffold')
+    os.environ['DECLUTTER_SESSION_DB_PATH'] = str(tmp_path / 'sessions.sqlite3')
+    from api.routes import sessions
+
+    class TokenUidVerifier:
+        settings = SimpleNamespace(auth_mode='strict')
+
+        def verify_id_token(self, token: str) -> dict[str, str]:
+            return {'uid': token}
+
+        def verify_app_check_token(self, token: str) -> dict[str, str]:
+            return {'app_id': token}
+
+    sessions.get_cash_to_clear_service.cache_clear()
+    dependencies.get_firebase_verifier.cache_clear()
+    app.dependency_overrides[dependencies.get_firebase_verifier] = TokenUidVerifier
+
+    try:
+        alice_headers = {
+            'Authorization': 'Bearer alice',
+            'X-Firebase-AppCheck': 'test-app-check-token',
+        }
+        bob_headers = {
+            'Authorization': 'Bearer bob',
+            'X-Firebase-AppCheck': 'test-app-check-token',
+        }
+        create = client.post('/sessions', headers=alice_headers)
+        assert create.status_code == 200
+        session_id = create.json()['session_id']
+
+        bob_read = client.get(f'/sessions/{session_id}', headers=bob_headers)
+        assert bob_read.status_code == 404
+        assert bob_read.json()['detail'] == 'Session not found.'
+
+        bob_add_item = client.post(
+            f'/sessions/{session_id}/items',
+            headers=bob_headers,
+            json={'label': 'electronics', 'condition': 'good'},
+        )
+        assert bob_add_item.status_code == 404
+
+        alice_read = client.get(f'/sessions/{session_id}', headers=alice_headers)
+        assert alice_read.status_code == 200
+        assert alice_read.json()['session_id'] == session_id
+    finally:
+        app.dependency_overrides.pop(dependencies.get_firebase_verifier, None)
+        dependencies.get_firebase_verifier.cache_clear()
+
 def test_cash_to_clear_sessions_require_auth() -> None:
     _set_auth_mode('scaffold')
     response = client.post('/sessions', json={})

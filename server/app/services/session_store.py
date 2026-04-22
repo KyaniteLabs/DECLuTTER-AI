@@ -38,18 +38,30 @@ class CashToClearSessionStore:
         self.listing_service = listing_service or ListingDraftService()
         self._ensure_schema()
 
-    def create_session(self, payload: SessionCreateRequest) -> CashToClearSessionResponse:
+    def create_session(
+        self,
+        owner_uid: str,
+        payload: SessionCreateRequest,
+    ) -> CashToClearSessionResponse:
         session_id = f'sess_{uuid4().hex}'
         created_at = _utc_now()
         with self._connect() as conn:
             conn.execute(
-                'INSERT INTO sessions (session_id, image_storage_key, created_at) VALUES (?, ?, ?)',
-                (session_id, payload.image_storage_key, created_at.isoformat()),
+                '''
+                INSERT INTO sessions (session_id, owner_uid, image_storage_key, created_at)
+                VALUES (?, ?, ?, ?)
+                ''',
+                (session_id, owner_uid, payload.image_storage_key, created_at.isoformat()),
             )
-        return self.get_session(session_id)
+        return self.get_session(owner_uid, session_id)
 
-    def add_item(self, session_id: str, payload: SessionItemCreateRequest) -> SessionItemResponse:
-        self._require_session(session_id)
+    def add_item(
+        self,
+        owner_uid: str,
+        session_id: str,
+        payload: SessionItemCreateRequest,
+    ) -> SessionItemResponse:
+        self._require_session(owner_uid, session_id)
         valuation = self.valuation_service.estimate(
             ValuationRequest(label=payload.label, condition=payload.condition)
         )
@@ -80,15 +92,16 @@ class CashToClearSessionStore:
                     created_at.isoformat(),
                 ),
             )
-        return self._get_item(session_id, item_id)
+        return self._get_item(owner_uid, session_id, item_id)
 
     def record_decision(
         self,
+        owner_uid: str,
         session_id: str,
         payload: SessionDecisionRequest,
     ) -> SessionDecisionResponse:
-        self._require_session(session_id)
-        self._require_item(session_id, payload.item_id)
+        self._require_session(owner_uid, session_id)
+        self._require_item(owner_uid, session_id, payload.item_id)
         decided_at = _utc_now()
         with self._connect() as conn:
             conn.execute(
@@ -108,16 +121,20 @@ class CashToClearSessionStore:
                     decided_at.isoformat(),
                 ),
             )
-        decision = self._get_decision(session_id, payload.item_id)
+        decision = self._get_decision(owner_uid, session_id, payload.item_id)
         if decision is None:
             raise RuntimeError('Decision was not persisted.')
         return decision
 
-    def get_session(self, session_id: str) -> CashToClearSessionResponse:
+    def get_session(self, owner_uid: str, session_id: str) -> CashToClearSessionResponse:
         with self._connect() as conn:
             session_row = conn.execute(
-                'SELECT session_id, image_storage_key, created_at FROM sessions WHERE session_id = ?',
-                (session_id,),
+                '''
+                SELECT session_id, image_storage_key, created_at
+                FROM sessions
+                WHERE owner_uid = ? AND session_id = ?
+                ''',
+                (owner_uid, session_id),
             ).fetchone()
             if session_row is None:
                 raise KeyError('Session not found.')
@@ -131,7 +148,7 @@ class CashToClearSessionStore:
                 (session_id,),
             ).fetchall()
 
-        items = [self._item_from_row(session_id, row) for row in item_rows]
+        items = [self._item_from_row(owner_uid, session_id, row) for row in item_rows]
         low_total, high_total = _money_on_table(items)
         return CashToClearSessionResponse(
             session_id=session_row['session_id'],
@@ -142,7 +159,8 @@ class CashToClearSessionStore:
             money_on_table_high_usd=round(high_total, 2),
         )
 
-    def _get_item(self, session_id: str, item_id: str) -> SessionItemResponse:
+    def _get_item(self, owner_uid: str, session_id: str, item_id: str) -> SessionItemResponse:
+        self._require_session(owner_uid, session_id)
         with self._connect() as conn:
             row = conn.execute(
                 '''
@@ -154,10 +172,15 @@ class CashToClearSessionStore:
             ).fetchone()
         if row is None:
             raise KeyError('Item not found for this session.')
-        return self._item_from_row(session_id, row)
+        return self._item_from_row(owner_uid, session_id, row)
 
-    def _item_from_row(self, session_id: str, row: sqlite3.Row) -> SessionItemResponse:
-        decision = self._get_decision(session_id, row['item_id'])
+    def _item_from_row(
+        self,
+        owner_uid: str,
+        session_id: str,
+        row: sqlite3.Row,
+    ) -> SessionItemResponse:
+        decision = self._get_decision(owner_uid, session_id, row['item_id'])
         return SessionItemResponse(
             item_id=row['item_id'],
             label=row['label'],
@@ -168,7 +191,13 @@ class CashToClearSessionStore:
             created_at=datetime.fromisoformat(row['created_at']),
         )
 
-    def _get_decision(self, session_id: str, item_id: str) -> SessionDecisionResponse | None:
+    def _get_decision(
+        self,
+        owner_uid: str,
+        session_id: str,
+        item_id: str,
+    ) -> SessionDecisionResponse | None:
+        self._require_session(owner_uid, session_id)
         with self._connect() as conn:
             row = conn.execute(
                 '''
@@ -187,16 +216,17 @@ class CashToClearSessionStore:
             decided_at=datetime.fromisoformat(row['decided_at']),
         )
 
-    def _require_session(self, session_id: str) -> None:
+    def _require_session(self, owner_uid: str, session_id: str) -> None:
         with self._connect() as conn:
             exists = conn.execute(
-                'SELECT 1 FROM sessions WHERE session_id = ?',
-                (session_id,),
+                'SELECT 1 FROM sessions WHERE owner_uid = ? AND session_id = ?',
+                (owner_uid, session_id),
             ).fetchone()
         if exists is None:
             raise KeyError('Session not found.')
 
-    def _require_item(self, session_id: str, item_id: str) -> None:
+    def _require_item(self, owner_uid: str, session_id: str, item_id: str) -> None:
+        self._require_session(owner_uid, session_id)
         with self._connect() as conn:
             exists = conn.execute(
                 'SELECT 1 FROM session_items WHERE session_id = ? AND item_id = ?',
@@ -211,6 +241,7 @@ class CashToClearSessionStore:
                 '''
                 CREATE TABLE IF NOT EXISTS sessions (
                     session_id TEXT PRIMARY KEY,
+                    owner_uid TEXT NOT NULL DEFAULT '',
                     image_storage_key TEXT,
                     created_at TEXT NOT NULL
                 );
@@ -237,6 +268,12 @@ class CashToClearSessionStore:
                 );
                 '''
             )
+            session_columns = {
+                row['name']
+                for row in conn.execute('PRAGMA table_info(sessions)').fetchall()
+            }
+            if 'owner_uid' not in session_columns:
+                conn.execute("ALTER TABLE sessions ADD COLUMN owner_uid TEXT NOT NULL DEFAULT ''")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
