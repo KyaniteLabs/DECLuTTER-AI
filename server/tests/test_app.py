@@ -1,5 +1,10 @@
-from fastapi.testclient import TestClient
+import io
+from pathlib import Path
 
+from fastapi.testclient import TestClient
+from PIL import Image
+
+from api.routes import analysis
 from app.main import app
 
 client = TestClient(app)
@@ -8,6 +13,13 @@ VALID_HEADERS = {
     'Authorization': 'Bearer test-user-token',
     'X-Firebase-AppCheck': 'test-app-check-token',
 }
+
+
+def _build_jpeg_with_exif() -> bytes:
+    buffer = io.BytesIO()
+    image = Image.new('RGB', (16, 16), color='green')
+    image.save(buffer, format='JPEG', exif=b'Exif\x00\x00FAKE_EXIF_DATA')
+    return buffer.getvalue()
 
 
 def test_health() -> None:
@@ -34,6 +46,28 @@ def test_analysis_scaffold() -> None:
     assert response.status_code == 200
     assert body['session_id'] == 's-1'
     assert len(body['items']) == 1
+
+
+def test_intake_strips_exif_and_stores_file(tmp_path: Path) -> None:
+    analysis.intake_service.storage.base_dir = tmp_path
+
+    payload = _build_jpeg_with_exif()
+    response = client.post(
+        '/analysis/intake',
+        headers=VALID_HEADERS,
+        files={'image': ('input.jpg', payload, 'image/jpeg')},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body['storage_key'].startswith('intake/')
+    assert body['content_type'] == 'image/jpeg'
+
+    saved_path = tmp_path / body['storage_key']
+    assert saved_path.exists()
+
+    with Image.open(saved_path) as stored:
+        assert not stored.getexif()
 
 
 def test_public_listing_does_not_require_auth() -> None:
