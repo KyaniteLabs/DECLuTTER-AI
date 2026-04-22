@@ -26,7 +26,14 @@ class Settings:
     def readiness() -> RuntimeReadiness:
         return RuntimeReadiness(
             firebase_admin_configured=bool(os.getenv("FIREBASE_PROJECT_ID")),
-            cloud_storage_configured=bool(os.getenv("DECLUTTER_STORAGE_BUCKET")),
+            cloud_storage_configured=Settings._cloud_storage_configured(),
             multimodal_model_configured=bool(os.getenv("DECLUTTER_MODEL_PROVIDER")),
-            ebay_api_configured=bool(os.getenv("EBAY_CLIENT_ID") and os.getenv("EBAY_CLIENT_SECRET")),
+            ebay_api_configured=bool(
+                os.getenv("EBAY_CLIENT_ID") and os.getenv("EBAY_CLIENT_SECRET")
+            ),
         )
+
+    @staticmethod
+    def _cloud_storage_configured() -> bool:
+        storage_backend = os.getenv("DECLUTTER_STORAGE_BACKEND", "local").strip().lower()
+        return storage_backend == "s3" and bool(os.getenv("DECLUTTER_S3_BUCKET"))

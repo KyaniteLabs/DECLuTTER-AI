@@ -23,3 +23,15 @@ def test_s3_backend_requires_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv('DECLUTTER_S3_BUCKET', raising=False)
     with pytest.raises(RuntimeError, match='DECLUTTER_S3_BUCKET is required'):
         create_storage_adapter_from_env()
+
+
+def test_analysis_intake_builder_honors_storage_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from api.routes.analysis import build_image_intake_service
+
+    monkeypatch.setenv('DECLUTTER_STORAGE_BACKEND', 's3')
+    monkeypatch.delenv('DECLUTTER_S3_BUCKET', raising=False)
+
+    with pytest.raises(RuntimeError, match='DECLUTTER_S3_BUCKET is required'):
+        build_image_intake_service()

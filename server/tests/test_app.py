@@ -52,6 +52,8 @@ def test_health() -> None:
 def test_readiness_defaults_to_not_ready() -> None:
     for key in [
         'FIREBASE_PROJECT_ID',
+        'DECLUTTER_STORAGE_BACKEND',
+        'DECLUTTER_S3_BUCKET',
         'DECLUTTER_STORAGE_BUCKET',
         'DECLUTTER_MODEL_PROVIDER',
         'EBAY_CLIENT_ID',
@@ -67,7 +69,9 @@ def test_readiness_defaults_to_not_ready() -> None:
 
 def test_readiness_can_report_ready_when_all_env_present() -> None:
     os.environ['FIREBASE_PROJECT_ID'] = 'demo-project'
-    os.environ['DECLUTTER_STORAGE_BUCKET'] = 'bucket'
+    os.environ['DECLUTTER_STORAGE_BACKEND'] = 's3'
+    os.environ['DECLUTTER_S3_BUCKET'] = 'bucket'
+    os.environ.pop('DECLUTTER_STORAGE_BUCKET', None)
     os.environ['DECLUTTER_MODEL_PROVIDER'] = 'mock-model'
     os.environ['EBAY_CLIENT_ID'] = 'id'
     os.environ['EBAY_CLIENT_SECRET'] = 'secret'
@@ -76,6 +80,21 @@ def test_readiness_can_report_ready_when_all_env_present() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body['ready_for_production'] is True
+
+
+def test_readiness_ignores_legacy_storage_bucket_without_s3_config() -> None:
+    os.environ['FIREBASE_PROJECT_ID'] = 'demo-project'
+    os.environ.pop('DECLUTTER_STORAGE_BACKEND', None)
+    os.environ.pop('DECLUTTER_S3_BUCKET', None)
+    os.environ['DECLUTTER_STORAGE_BUCKET'] = 'legacy-bucket'
+    os.environ['DECLUTTER_MODEL_PROVIDER'] = 'mock-model'
+    os.environ['EBAY_CLIENT_ID'] = 'id'
+    os.environ['EBAY_CLIENT_SECRET'] = 'secret'
+
+    response = client.get('/health/readiness')
+    assert response.status_code == 200
+    body = response.json()
+    assert body['ready_for_production'] is False
 
 
 def test_analysis_requires_auth_headers() -> None:

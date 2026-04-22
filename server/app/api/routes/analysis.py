@@ -8,11 +8,19 @@ from schemas.analysis import (
 )
 from services.analysis_adapter import MockStructuredAnalysisAdapter
 from services.image_intake import ImageIntakeService
-from services.storage_adapter import LocalSignedUploadAdapter
+from services.storage_adapter import (
+    LocalSignedUploadAdapter,
+    create_storage_adapter_from_env,
+)
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
-intake_service = ImageIntakeService()
+
+def build_image_intake_service() -> ImageIntakeService:
+    return ImageIntakeService(storage=create_storage_adapter_from_env())
+
+
+intake_service = build_image_intake_service()
 analysis_adapter = MockStructuredAnalysisAdapter()
 upload_adapter = LocalSignedUploadAdapter()
 
