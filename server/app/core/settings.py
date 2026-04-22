@@ -37,3 +37,8 @@ class Settings:
     def _cloud_storage_configured() -> bool:
         storage_backend = os.getenv("DECLUTTER_STORAGE_BACKEND", "local").strip().lower()
         return storage_backend == "s3" and bool(os.getenv("DECLUTTER_S3_BUCKET"))
+
+    @staticmethod
+    def cors_allow_origins() -> list[str]:
+        raw_origins = os.getenv("DECLUTTER_CORS_ALLOW_ORIGINS", "")
+        return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]

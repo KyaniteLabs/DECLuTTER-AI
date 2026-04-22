@@ -1,5 +1,7 @@
 import io
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -8,6 +10,8 @@ from PIL import Image
 from api.routes import analysis
 from app.main import app
 from security import dependencies
+from services.image_intake import ImageIntakeService
+from services.storage_adapter import LocalImageStorageAdapter
 
 client = TestClient(app)
 
@@ -55,6 +59,7 @@ def test_readiness_defaults_to_not_ready() -> None:
         'DECLUTTER_STORAGE_BACKEND',
         'DECLUTTER_S3_BUCKET',
         'DECLUTTER_STORAGE_BUCKET',
+        'DECLUTTER_CORS_ALLOW_ORIGINS',
         'DECLUTTER_MODEL_PROVIDER',
         'EBAY_CLIENT_ID',
         'EBAY_CLIENT_SECRET',
@@ -97,6 +102,43 @@ def test_readiness_ignores_legacy_storage_bucket_without_s3_config() -> None:
     assert body['ready_for_production'] is False
 
 
+def test_configured_cors_origin_allows_preflight(monkeypatch) -> None:
+    monkeypatch.setenv('DECLUTTER_CORS_ALLOW_ORIGINS', 'https://app.declutter.ai')
+    from app.main import create_app
+
+    cors_client = TestClient(create_app())
+    response = cors_client.options(
+        '/analysis/run',
+        headers={
+            'Origin': 'https://app.declutter.ai',
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'authorization,x-firebase-appcheck',
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers['access-control-allow-origin'] == 'https://app.declutter.ai'
+
+
+def test_s3_misconfiguration_does_not_block_app_import(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env['PYTHONPATH'] = str(Path(__file__).resolve().parents[1] / 'app')
+    env['DECLUTTER_STORAGE_BACKEND'] = 's3'
+    env.pop('DECLUTTER_S3_BUCKET', None)
+
+    result = subprocess.run(
+        [sys.executable, '-c', 'import app.main; print("imported")'],
+        check=False,
+        cwd=Path(__file__).resolve().parents[1],
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert 'imported' in result.stdout
+
+
 def test_analysis_requires_auth_headers() -> None:
     _set_auth_mode('scaffold')
     response = client.post(
@@ -137,14 +179,19 @@ def test_analysis_scaffold() -> None:
 
 def test_intake_strips_exif_and_stores_file(tmp_path: Path) -> None:
     _set_auth_mode('scaffold')
-    analysis.intake_service.storage.base_dir = tmp_path
-
-    payload = _build_jpeg_with_exif()
-    response = client.post(
-        '/analysis/intake',
-        headers=VALID_HEADERS,
-        files={'image': ('input.jpg', payload, 'image/jpeg')},
+    app.dependency_overrides[analysis.get_image_intake_service] = lambda: ImageIntakeService(
+        storage=LocalImageStorageAdapter(str(tmp_path))
     )
+
+    try:
+        payload = _build_jpeg_with_exif()
+        response = client.post(
+            '/analysis/intake',
+            headers=VALID_HEADERS,
+            files={'image': ('input.jpg', payload, 'image/jpeg')},
+        )
+    finally:
+        app.dependency_overrides.pop(analysis.get_image_intake_service, None)
 
     assert response.status_code == 200
     body = response.json()
