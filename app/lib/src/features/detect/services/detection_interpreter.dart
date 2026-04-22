@@ -7,7 +7,7 @@ abstract class DetectionInterpreter {
   List<int> get inputShape;
 
   /// Data type expected by the input tensor.
-  TfLiteType get inputType;
+  TensorType get inputType;
 
   /// Total number of output tensors.
   int get outputCount;
@@ -16,7 +16,7 @@ abstract class DetectionInterpreter {
   List<int> outputShape(int index);
 
   /// Data type of the output tensor at [index].
-  TfLiteType outputType(int index);
+  TensorType outputType(int index);
 
   /// Runs inference using the provided [input] and fills [outputs].
   void run(Object input, Map<int, Object> outputs);
@@ -38,16 +38,16 @@ class TfliteDetectionInterpreter implements DetectionInterpreter {
   List<int> get inputShape => _interpreter.getInputTensor(0).shape;
 
   @override
-  TfLiteType get inputType => _interpreter.getInputTensor(0).type;
+  TensorType get inputType => _interpreter.getInputTensor(0).type;
 
   @override
-  int get outputCount => _interpreter.getOutputTensorCount();
+  int get outputCount => _interpreter.getOutputTensors().length;
 
   @override
   List<int> outputShape(int index) => _interpreter.getOutputTensor(index).shape;
 
   @override
-  TfLiteType outputType(int index) => _interpreter.getOutputTensor(index).type;
+  TensorType outputType(int index) => _interpreter.getOutputTensor(index).type;
 
   @override
   void run(Object input, Map<int, Object> outputs) {

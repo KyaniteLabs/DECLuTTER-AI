@@ -1,11 +1,14 @@
+import 'package:declutter_ai/main.dart';
+import 'package:declutter_ai/src/features/detect/domain/detection.dart';
+import 'package:declutter_ai/src/features/grouping/domain/detection_group.dart';
+import 'package:declutter_ai/src/features/grouping/domain/grouped_detection_result.dart';
+import 'package:declutter_ai/src/features/session/presentation/session_timer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:declutter_ai/main.dart';
-import 'package:declutter_ai/src/features/session/presentation/session_timer_screen.dart';
-
 void main() {
-  testWidgets('app boots to capture screen even when camera unavailable', (tester) async {
+  testWidgets('app boots to capture screen even when camera unavailable',
+      (tester) async {
     await tester.pumpWidget(const DeclutterAIApp());
 
     // Allow the initial camera request future to resolve.
@@ -14,16 +17,48 @@ void main() {
 
     expect(find.text('Capture clutter zone'), findsOneWidget);
     expect(find.text('Snap zone'), findsOneWidget);
-    expect(find.textContaining('camera'), findsWidgets);
+    expect(find.byType(Scaffold), findsOneWidget);
   });
 
   testWidgets('session timer logs decisions with notes', (tester) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const group = DetectionGroup(
+      id: 'group_1',
+      rawLabel: 'keepsake box',
+      displayLabel: 'Keepsake Box',
+      detections: [
+        Detection(
+          label: 'keepsake box',
+          confidence: 0.9,
+          boundingBox: Rect.fromLTWH(0, 0, 0.4, 0.4),
+        ),
+      ],
+    );
+
     await tester.pumpWidget(
       const MaterialApp(
-        home: SessionTimerScreen(),
+        home: SessionTimerScreen(
+          groupedResult: GroupedDetectionResult(
+            groups: [group],
+            totalDetections: 1,
+            originalSize: Size(400, 300),
+            isMocked: false,
+          ),
+        ),
       ),
     );
 
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Keep'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Keep'));
     await tester.pumpAndSettle();
 

@@ -1,7 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
-import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -14,7 +14,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('DetectorService', () {
-    test('falls back to mock detections when interpreter is unavailable', () async {
+    test('falls back to mock detections when interpreter is unavailable',
+        () async {
       final bundle = _MapAssetBundle({
         'assets/model/labels.txt': 'chair\nsofa\ntrash bag',
         'assets/prompts/debug_sample_detections.json':
@@ -26,7 +27,8 @@ void main() {
         isMobileOverride: false,
       );
 
-      final tempDir = await Directory.systemTemp.createTemp('detector_service_mock');
+      final tempDir =
+          await Directory.systemTemp.createTemp('detector_service_mock');
       final imageFile = File('${tempDir.path}/sample.jpg');
       final generated = img.Image(width: 160, height: 120);
       await imageFile.writeAsBytes(img.encodeJpg(generated));
@@ -54,13 +56,14 @@ void main() {
         interpreter: interpreter,
       );
 
-      final tempDir = await Directory.systemTemp.createTemp('detector_service_fixture');
+      final tempDir =
+          await Directory.systemTemp.createTemp('detector_service_fixture');
       final imageFile = File('${tempDir.path}/fixture.png');
       final generated = img.Image(width: 8, height: 8);
       for (var y = 0; y < generated.height; y++) {
         for (var x = 0; x < generated.width; x++) {
           final value = (x + y) % 255;
-          generated.setPixelRgba(x, y, value, value ~/ 2, 255 - value);
+          generated.setPixelRgba(x, y, value, value ~/ 2, 255 - value, 255);
         }
       }
       await imageFile.writeAsBytes(img.encodePng(generated));
@@ -90,7 +93,8 @@ void main() {
       await tempDir.delete(recursive: true);
     });
 
-    test('falls back to mock detections when interpreter throws during run', () async {
+    test('falls back to mock detections when interpreter throws during run',
+        () async {
       final bundle = _MapAssetBundle({
         'assets/model/labels.txt': 'apple\nbanana',
         'assets/prompts/debug_sample_detections.json':
@@ -103,7 +107,8 @@ void main() {
         interpreter: interpreter,
       );
 
-      final tempDir = await Directory.systemTemp.createTemp('detector_service_throw');
+      final tempDir =
+          await Directory.systemTemp.createTemp('detector_service_throw');
       final imageFile = File('${tempDir.path}/fixture.png');
       final generated = img.Image(width: 8, height: 8);
       await imageFile.writeAsBytes(img.encodePng(generated));
@@ -128,14 +133,16 @@ void main() {
     final interpreter = _TrackingThrowingInterpreter();
     final service = DetectorService(bundle: bundle, interpreter: interpreter);
 
-    final tempDir = await Directory.systemTemp.createTemp('detector_test_throwing_interpreter');
+    final tempDir = await Directory.systemTemp
+        .createTemp('detector_test_throwing_interpreter');
     final imageFile = File('${tempDir.path}/sample.jpg');
     final generated = img.Image(width: 16, height: 16);
     await imageFile.writeAsBytes(img.encodeJpg(generated));
 
     final result = await service.detectOnImage(imageFile.path);
 
-    expect(interpreter.runCallCount, greaterThan(0), reason: 'interpreter should have been invoked before falling back');
+    expect(interpreter.runCallCount, greaterThan(0),
+        reason: 'interpreter should have been invoked before falling back');
     expect(result.isMocked, isTrue);
     expect(result.detections, isNotEmpty);
     expect(result.inferenceTime, equals(const Duration(milliseconds: 120)));
@@ -148,6 +155,16 @@ class _MapAssetBundle extends CachingAssetBundle {
   _MapAssetBundle(this.values);
 
   final Map<String, String> values;
+
+  @override
+  Future<ByteData> load(String key) async {
+    final value = values[key];
+    if (value == null) {
+      throw FlutterError('Missing asset: $key');
+    }
+    final bytes = Uint8List.fromList(utf8.encode(value));
+    return ByteData.view(bytes.buffer);
+  }
 
   @override
   Future<String> loadString(String key, {bool cache = true}) async {
@@ -179,7 +196,7 @@ class _FixtureDetectionInterpreter implements DetectionInterpreter {
   List<int> get inputShape => const [1, 4, 4, 3];
 
   @override
-  TfLiteType get inputType => TfLiteType.float32;
+  TensorType get inputType => TensorType.float32;
 
   @override
   int get outputCount => 4;
@@ -201,7 +218,7 @@ class _FixtureDetectionInterpreter implements DetectionInterpreter {
   }
 
   @override
-  TfLiteType outputType(int index) => TfLiteType.float32;
+  TensorType outputType(int index) => TensorType.float32;
 
   @override
   void run(Object input, Map<int, Object> outputs) {
@@ -235,27 +252,32 @@ class _FixtureDetectionInterpreter implements DetectionInterpreter {
 
     final boxes = outputs[0] as List<dynamic>;
     final boxBatch = boxes[0] as List<dynamic>;
-    boxBatch[0] = Float32List.fromList([0.1, 0.2, 0.65, 0.75]);
+    final firstBox = boxBatch[0] as List<dynamic>;
+    firstBox
+      ..[0] = 0.1
+      ..[1] = 0.2
+      ..[2] = 0.65
+      ..[3] = 0.75;
 
     final classes = outputs[1] as List<dynamic>;
-    classes[0] = Float32List.fromList([1, 0, 0, 0, 0]);
+    final classBatch = classes[0] as List<dynamic>;
+    classBatch[0] = 1.0;
 
     final scores = outputs[2] as List<dynamic>;
-    scores[0] = Float32List.fromList([0.87, 0, 0, 0, 0]);
+    final scoreBatch = scores[0] as List<dynamic>;
+    scoreBatch[0] = 0.87;
 
     final count = outputs[3] as List<dynamic>;
-    count[0] = Float32List.fromList([1]);
+    count[0] = 1.0;
   }
 }
-
 
 class _ThrowingInterpreter implements DetectionInterpreter {
   @override
   List<int> get inputShape => const [1, 4, 4, 3];
 
-
   @override
-  TfLiteType get inputType => TfLiteType.float32;
+  TensorType get inputType => TensorType.float32;
 
   @override
   int get outputCount => 4;
@@ -264,7 +286,7 @@ class _ThrowingInterpreter implements DetectionInterpreter {
   List<int> outputShape(int index) => const [1, 5];
 
   @override
-  TfLiteType outputType(int index) => TfLiteType.float32;
+  TensorType outputType(int index) => TensorType.float32;
 
   @override
   void run(Object input, Map<int, Object> outputs) {
@@ -279,7 +301,7 @@ class _TrackingThrowingInterpreter implements DetectionInterpreter {
   List<int> get inputShape => const [1, 4, 4, 3];
 
   @override
-  TfLiteType get inputType => TfLiteType.float32;
+  TensorType get inputType => TensorType.float32;
 
   @override
   int get outputCount => 4;
@@ -288,7 +310,7 @@ class _TrackingThrowingInterpreter implements DetectionInterpreter {
   List<int> outputShape(int index) => const [1, 5];
 
   @override
-  TfLiteType outputType(int index) => TfLiteType.float32;
+  TensorType outputType(int index) => TensorType.float32;
 
   @override
   void run(Object input, Map<int, Object> outputs) {
@@ -296,4 +318,3 @@ class _TrackingThrowingInterpreter implements DetectionInterpreter {
     throw StateError('forced failure');
   }
 }
-

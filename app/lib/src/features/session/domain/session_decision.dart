@@ -57,7 +57,7 @@ extension DecisionCategoryX on DecisionCategory {
       case DecisionCategory.relocate:
         return scheme.tertiaryContainer;
       case DecisionCategory.maybe:
-        return scheme.surfaceVariant;
+        return scheme.surfaceContainerHighest;
     }
   }
 

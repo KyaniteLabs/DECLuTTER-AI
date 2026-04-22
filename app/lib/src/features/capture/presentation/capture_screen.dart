@@ -10,7 +10,6 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../detect/domain/detection.dart';
 import '../../detect/presentation/widgets/detection_debug_painter.dart';
 import '../../detect/services/detector_service.dart';
-import '../../grouping/domain/detection_group.dart';
 import '../../grouping/domain/grouped_detection_result.dart';
 import '../../grouping/services/detection_grouper.dart';
 import '../../session/presentation/session_timer_screen.dart';
@@ -22,7 +21,8 @@ class CaptureScreen extends StatefulWidget {
   State<CaptureScreen> createState() => _CaptureScreenState();
 }
 
-class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserver {
+class _CaptureScreenState extends State<CaptureScreen>
+    with WidgetsBindingObserver {
   CameraController? _controller;
   XFile? _lastCapture;
   bool _isRequesting = true;
@@ -94,7 +94,8 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
     } on PlatformException catch (error) {
       setState(() {
         _cameraUnavailable = true;
-        _errorMessage = error.message ?? 'Camera permission is unavailable in this environment.';
+        _errorMessage = error.message ??
+            'Camera permission is unavailable in this environment.';
         _isRequesting = false;
       });
       return;
@@ -106,7 +107,8 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
       if (cameras.isEmpty) {
         setState(() {
           _cameraUnavailable = true;
-          _errorMessage = 'No camera detected. Try another device or simulator with camera support.';
+          _errorMessage =
+              'No camera detected. Try another device or simulator with camera support.';
           _isRequesting = false;
         });
         return;
@@ -144,7 +146,8 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
     } on PlatformException catch (error) {
       setState(() {
         _cameraUnavailable = true;
-        _errorMessage = error.message ?? 'Camera is not available in this environment.';
+        _errorMessage =
+            error.message ?? 'Camera is not available in this environment.';
         _isRequesting = false;
       });
     }
@@ -164,12 +167,15 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
         unawaited(_analyzeCapture(capture));
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Photo saved. Review below before sorting.')),
+        const SnackBar(
+            content: Text('Photo saved. Review below before sorting.')),
       );
     } on CameraException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not capture photo: ${error.description ?? error.code}')),
+        SnackBar(
+            content: Text(
+                'Could not capture photo: ${error.description ?? error.code}')),
       );
     }
   }
@@ -178,7 +184,8 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
     final capture = _lastCapture;
     if (capture == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Capture a photo first to start sorting.')),
+        const SnackBar(
+            content: Text('Capture a photo first to start sorting.')),
       );
       return;
     }
@@ -231,13 +238,16 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
       return _MessageCard(
         icon: Icons.lock_outline,
         title: 'Camera permission needed',
-        message: 'Allow camera access so the app can analyze your clutter zone. Tap retry after enabling permissions.',
+        message:
+            'Allow camera access so the app can analyze your clutter zone. Tap retry after enabling permissions.',
         actionLabel: 'Retry',
         onTap: _initCamera,
       );
     }
 
-    if (_cameraUnavailable || _controller == null || !_controller!.value.isInitialized) {
+    if (_cameraUnavailable ||
+        _controller == null ||
+        !_controller!.value.isInitialized) {
       return _MessageCard(
         icon: Icons.videocam_off_outlined,
         title: 'Camera preview unavailable',
@@ -263,7 +273,8 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
       return const _MessageCard(
         icon: Icons.photo_camera_back_outlined,
         title: 'No photo yet',
-        message: 'Line up one small zone and tap the shutter. You will see the preview here when it is ready.',
+        message:
+            'Line up one small zone and tap the shutter. You will see the preview here when it is ready.',
       );
     }
 
@@ -274,7 +285,8 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
         children: [
           if (!kIsWeb)
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
               child: AspectRatio(
                 aspectRatio: _previewAspectRatio(),
                 child: Stack(
@@ -310,11 +322,12 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
                   ],
                 ),
               ),
-          )
+            )
           else
             const Padding(
               padding: EdgeInsets.all(16),
-              child: Text('Preview unsupported on this platform, but the capture path is saved.'),
+              child: Text(
+                  'Preview unsupported on this platform, but the capture path is saved.'),
             ),
           Padding(
             padding: const EdgeInsets.all(16),
@@ -323,7 +336,10 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
               children: [
                 Text(
                   'Ready to sort this zone?',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -348,7 +364,9 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
 
   double _previewAspectRatio() {
     final result = _detectionResult;
-    if (result != null && result.originalSize.width > 0 && result.originalSize.height > 0) {
+    if (result != null &&
+        result.originalSize.width > 0 &&
+        result.originalSize.height > 0) {
       return result.originalSize.width / result.originalSize.height;
     }
     final controller = _controller;
@@ -360,12 +378,13 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
 
   Widget _buildAnalysisStatus() {
     if (kIsWeb) {
-      return const Text('Detection preview is coming soon for web builds. Continue to practice the flow.');
+      return const Text(
+          'Detection preview is coming soon for web builds. Continue to practice the flow.');
     }
 
     if (_isAnalyzingCapture) {
-      return Row(
-        children: const [
+      return const Row(
+        children: [
           SizedBox(
             width: 20,
             height: 20,
@@ -373,7 +392,8 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
           ),
           SizedBox(width: 12),
           Expanded(
-            child: Text('Mapping groups... keep breathing. We will highlight likely clusters next.'),
+            child: Text(
+                'Mapping groups... keep breathing. We will highlight likely clusters next.'),
           ),
         ],
       );
@@ -397,7 +417,8 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
 
     final result = _detectionResult;
     if (result == null) {
-      return const Text('Tap "Snap zone" to analyze a photo and see debug boxes for detected groups.');
+      return const Text(
+          'Tap "Snap zone" to analyze a photo and see debug boxes for detected groups.');
     }
 
     if (result.isEmpty) {
@@ -430,7 +451,8 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
       children: [
         Row(
           children: [
-            Icon(result.isMocked ? Icons.bug_report_outlined : Icons.insights, color: Theme.of(context).colorScheme.primary),
+            Icon(result.isMocked ? Icons.bug_report_outlined : Icons.insights,
+                color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -489,14 +511,16 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
                       children: [
                         Text(
                           'Quick capture checklist',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         SizedBox(height: 12),
                         Text('• Pick a single shelf, drawer, or desk zone.'),
                         SizedBox(height: 8),
                         Text('• Clear big distractions (coffee cups, cords).'),
                         SizedBox(height: 8),
-                        Text('• Breathe. One photo now; decisions happen next.'),
+                        Text(
+                            '• Breathe. One photo now; decisions happen next.'),
                       ],
                     ),
                   );
@@ -521,7 +545,9 @@ class _CaptureScreenState extends State<CaptureScreen> with WidgetsBindingObserv
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   FloatingActionButton.extended(
-                    onPressed: !_isRequesting && !_permissionDenied && !_cameraUnavailable
+                    onPressed: !_isRequesting &&
+                            !_permissionDenied &&
+                            !_cameraUnavailable
                         ? _capturePhoto
                         : null,
                     icon: const Icon(Icons.camera_alt_outlined),
@@ -575,7 +601,8 @@ class _MessageCard extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               title,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),

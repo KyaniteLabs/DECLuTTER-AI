@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:declutter_ai/src/features/detect/domain/detection.dart';
 import 'package:declutter_ai/src/features/grouping/domain/detection_group.dart';
 import 'package:declutter_ai/src/features/grouping/domain/grouped_detection_result.dart';
@@ -30,7 +28,8 @@ DetectionGroup buildGroup({
 }
 
 GroupedDetectionResult buildGroupedResult(List<DetectionGroup> groups) {
-  final totalDetections = groups.fold<int>(0, (sum, group) => sum + group.count);
+  final totalDetections =
+      groups.fold<int>(0, (sum, group) => sum + group.count);
   return GroupedDetectionResult(
     groups: groups,
     totalDetections: totalDetections,
@@ -41,7 +40,9 @@ GroupedDetectionResult buildGroupedResult(List<DetectionGroup> groups) {
 
 void main() {
   group('SessionDecisionComposer', () {
-    testWidgets('shows group progress and enables actions when a group is selected', (tester) async {
+    testWidgets(
+        'shows group progress and enables actions when a group is selected',
+        (tester) async {
       final groups = [
         buildGroup(id: 'group_1', label: 'books', count: 2),
         buildGroup(id: 'group_2', label: 'mug', count: 1),
@@ -86,29 +87,35 @@ void main() {
       expect(selectedCategory, DecisionCategory.keep);
     });
 
-    testWidgets('disables action buttons when no groups detected', (tester) async {
+    testWidgets('disables action buttons when no groups detected',
+        (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Material(
             child: SessionDecisionComposer(
-              groupedResult: const GroupedDetectionResult.empty(),
+              groupedResult: GroupedDetectionResult.empty(),
               selectedGroupId: null,
               onGroupSelected: _noop,
-              decisions: const [],
+              decisions: [],
               onCategorySelected: _noopCategory,
             ),
           ),
         ),
       );
 
-      expect(find.text('No grouped detections yet. Capture a zone photo or retry analysis to unlock guided sorting.'), findsOneWidget);
-      final keepButton = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Keep'));
+      expect(
+          find.text(
+              'No grouped detections yet. Capture a zone photo or retry analysis to unlock guided sorting.'),
+          findsOneWidget);
+      final keepButton = tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Keep'));
       expect(keepButton.onPressed, isNull);
     });
   });
 
   group('SessionDecisionHistory', () {
-    testWidgets('summarizes group progress alongside logged decisions', (tester) async {
+    testWidgets('summarizes group progress alongside logged decisions',
+        (tester) async {
       final groups = [
         buildGroup(id: 'group_1', label: 'books', count: 2),
         buildGroup(id: 'group_2', label: 'mug', count: 1),
@@ -158,13 +165,32 @@ void main() {
         ),
       );
 
+      await tester.scrollUntilVisible(
+        find.text('Books · 0/2 sorted'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Books · 0/2 sorted'), findsOneWidget);
       expect(find.text('Mug · 0/1 sorted'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Books: 0/2 sorted'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Books: 0/2 sorted'), findsOneWidget);
       expect(find.text('Mug: 0/1 sorted'), findsOneWidget);
     });
 
-    testWidgets('logs decisions against the correct group metadata', (tester) async {
+    testWidgets('logs decisions against the correct group metadata',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       final books = buildGroup(id: 'group_1', label: 'books', count: 2);
       final mug = buildGroup(id: 'group_2', label: 'mug', count: 1);
 
@@ -176,6 +202,11 @@ void main() {
         ),
       );
 
+      await tester.scrollUntilVisible(
+        find.widgetWithText(FilledButton, 'Keep'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.widgetWithText(FilledButton, 'Keep'));
       await tester.pumpAndSettle();
 
@@ -190,7 +221,8 @@ void main() {
   });
 
   group('CashToClearStatusCard', () {
-    testWidgets('shows synced money on the table and group value chips', (tester) async {
+    testWidgets('shows synced money on the table and group value chips',
+        (tester) async {
       final groups = [
         buildGroup(id: 'group_1', label: 'books', count: 2),
       ];
@@ -235,10 +267,12 @@ void main() {
       expect(find.text(r'$12–30'), findsOneWidget);
       expect(find.textContaining('Books: \$12–30'), findsOneWidget);
       expect(find.text('Page created for Books'), findsOneWidget);
-      expect(find.text('https://api.example.com/public/listings/pub_1'), findsOneWidget);
+      expect(find.text('https://api.example.com/public/listings/pub_1'),
+          findsOneWidget);
     });
 
-    testWidgets('disables create page action while a group is already creating', (tester) async {
+    testWidgets('disables create page action while a group is already creating',
+        (tester) async {
       final groups = [
         buildGroup(id: 'group_1', label: 'books', count: 2),
       ];
@@ -320,10 +354,10 @@ void main() {
       expect(find.text(r'Money still on the table: $12–30'), findsOneWidget);
       expect(find.text('Sell: 1'), findsOneWidget);
       expect(find.text('Listing pages'), findsOneWidget);
-      expect(find.text('https://api.example.com/public/listings/pub_1'), findsOneWidget);
+      expect(find.text('https://api.example.com/public/listings/pub_1'),
+          findsOneWidget);
     });
   });
-
 }
 
 void _noop(String _) {}

@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/material.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -7,7 +7,7 @@ import 'package:declutter_ai/src/features/grouping/services/detection_grouper.da
 
 void main() {
   group('DetectionGrouper', () {
-    final grouper = DetectionGrouper();
+    const grouper = DetectionGrouper();
 
     test('returns empty list when there are no detections', () {
       expect(grouper.groupDetections(const []), isEmpty);
@@ -16,20 +16,20 @@ void main() {
     test('groups detections by normalized label', () {
       final groups = grouper.groupDetections(
         [
-          Detection(
+          const Detection(
             label: 'books',
             confidence: 0.9,
-            boundingBox: const Rect.fromLTWH(0, 0, 0.5, 0.5),
+            boundingBox: Rect.fromLTWH(0, 0, 0.5, 0.5),
           ),
-          Detection(
+          const Detection(
             label: 'Books ',
             confidence: 0.8,
-            boundingBox: const Rect.fromLTWH(0.1, 0.1, 0.4, 0.4),
+            boundingBox: Rect.fromLTWH(0.1, 0.1, 0.4, 0.4),
           ),
-          Detection(
+          const Detection(
             label: 'mug',
             confidence: 0.95,
-            boundingBox: const Rect.fromLTWH(0.2, 0.2, 0.3, 0.3),
+            boundingBox: Rect.fromLTWH(0.2, 0.2, 0.3, 0.3),
           ),
         ],
       );
