@@ -579,3 +579,114 @@ def test_cash_to_clear_can_publish_standalone_html_listing_page(tmp_path: Path) 
 def test_public_listing_unknown_id_returns_404() -> None:
     response = client.get('/public/listings/pub_missing')
     assert response.status_code == 404
+
+
+def test_cash_to_clear_session_summary_includes_counts_totals_and_listing_links(tmp_path: Path) -> None:
+    _set_auth_mode('scaffold')
+    os.environ['DECLUTTER_SESSION_DB_PATH'] = str(tmp_path / 'sessions.sqlite3')
+    from api.routes import sessions
+    from api.routes import public_listings
+
+    sessions.get_cash_to_clear_service.cache_clear()
+    public_listings.get_public_listing_service.cache_clear()
+
+    create = client.post('/sessions', headers=VALID_HEADERS, json={})
+    assert create.status_code == 200
+    session_id = create.json()['session_id']
+
+    item_one = client.post(
+        f'/sessions/{session_id}/items',
+        headers=VALID_HEADERS,
+        json={'label': 'electronics', 'condition': 'good'},
+    ).json()
+    item_two = client.post(
+        f'/sessions/{session_id}/items',
+        headers=VALID_HEADERS,
+        json={'label': 'book', 'condition': 'fair'},
+    ).json()
+
+    client.post(
+        f'/sessions/{session_id}/decisions',
+        headers=VALID_HEADERS,
+        json={'item_id': item_one['item_id'], 'decision': 'sell'},
+    )
+    client.post(
+        f'/sessions/{session_id}/decisions',
+        headers=VALID_HEADERS,
+        json={'item_id': item_two['item_id'], 'decision': 'donate'},
+    )
+    public_listing = client.post(
+        f"/sessions/{session_id}/items/{item_one['item_id']}/public-listing",
+        headers=VALID_HEADERS,
+    ).json()
+
+    summary = client.get(f'/sessions/{session_id}/summary', headers=VALID_HEADERS)
+
+    assert summary.status_code == 200
+    body = summary.json()
+    assert body['session_id'] == session_id
+    assert body['total_items'] == 2
+    assert body['decided_items'] == 2
+    assert body['decision_counts']['sell'] == 1
+    assert body['decision_counts']['donate'] == 1
+    assert body['money_on_table_low_usd'] == item_one['valuation']['estimated_low_usd']
+    assert body['total_estimated_low_usd'] == item_one['valuation']['estimated_low_usd'] + item_two['valuation']['estimated_low_usd']
+    assert body['public_listings'][0]['listing_id'] == public_listing['listing_id']
+    assert body['public_listings'][0]['item_id'] == item_one['item_id']
+
+
+def test_cash_to_clear_session_history_lists_only_authenticated_user_sessions(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    _set_auth_mode('scaffold')
+    os.environ['DECLUTTER_SESSION_DB_PATH'] = str(tmp_path / 'sessions.sqlite3')
+    from api.routes import sessions
+
+    class TokenUidVerifier:
+        settings = SimpleNamespace(auth_mode='strict')
+
+        def verify_id_token(self, token: str) -> dict[str, str]:
+            return {'uid': token}
+
+        def verify_app_check_token(self, token: str) -> dict[str, str]:
+            return {'app_id': token}
+
+    sessions.get_cash_to_clear_service.cache_clear()
+    dependencies.get_firebase_verifier.cache_clear()
+    app.dependency_overrides[dependencies.get_firebase_verifier] = TokenUidVerifier
+
+    try:
+        alice_headers = {
+            'Authorization': 'Bearer alice',
+            'X-Firebase-AppCheck': 'test-app-check-token',
+        }
+        bob_headers = {
+            'Authorization': 'Bearer bob',
+            'X-Firebase-AppCheck': 'test-app-check-token',
+        }
+        alice_session = client.post('/sessions', headers=alice_headers).json()
+        bob_session = client.post('/sessions', headers=bob_headers).json()
+
+        alice_item = client.post(
+            f"/sessions/{alice_session['session_id']}/items",
+            headers=alice_headers,
+            json={'label': 'electronics', 'condition': 'good'},
+        ).json()
+        client.post(
+            f"/sessions/{alice_session['session_id']}/decisions",
+            headers=alice_headers,
+            json={'item_id': alice_item['item_id'], 'decision': 'sell'},
+        )
+
+        alice_history = client.get('/sessions', headers=alice_headers)
+        bob_history = client.get('/sessions', headers=bob_headers)
+
+        assert alice_history.status_code == 200
+        assert bob_history.status_code == 200
+        assert [entry['session_id'] for entry in alice_history.json()['sessions']] == [alice_session['session_id']]
+        assert [entry['session_id'] for entry in bob_history.json()['sessions']] == [bob_session['session_id']]
+        assert alice_history.json()['sessions'][0]['total_items'] == 1
+        assert alice_history.json()['sessions'][0]['decided_items'] == 1
+    finally:
+        app.dependency_overrides.pop(dependencies.get_firebase_verifier, None)
+        dependencies.get_firebase_verifier.cache_clear()

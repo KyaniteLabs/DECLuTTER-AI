@@ -11,12 +11,16 @@ from html import escape
 from schemas.listing import ListingDraftRequest, ListingDraftResponse
 from schemas.public_listing import PublicListingResponse
 from schemas.session import (
+    CashToClearSessionHistoryItem,
+    CashToClearSessionHistoryResponse,
     CashToClearSessionResponse,
+    CashToClearSessionSummaryResponse,
     SessionCreateRequest,
     SessionDecisionRequest,
     SessionDecisionResponse,
     SessionItemCreateRequest,
     SessionItemResponse,
+    SessionPublicListingSummary,
 )
 from schemas.valuation import ValuationRequest, ValuationResponse
 from services.listing_service import ListingDraftService
@@ -128,6 +132,102 @@ class CashToClearSessionStore:
             raise RuntimeError('Decision was not persisted.')
         return decision
 
+
+
+    def list_sessions(self, owner_uid: str) -> CashToClearSessionHistoryResponse:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT session_id, image_storage_key, created_at
+                FROM sessions
+                WHERE owner_uid = ?
+                ORDER BY created_at DESC
+                """,
+                (owner_uid,),
+            ).fetchall()
+
+        history = []
+        for row in rows:
+            summary = self.get_session_summary(owner_uid, row['session_id'])
+            history.append(
+                CashToClearSessionHistoryItem(
+                    session_id=row['session_id'],
+                    image_storage_key=row['image_storage_key'],
+                    created_at=datetime.fromisoformat(row['created_at']),
+                    total_items=summary.total_items,
+                    decided_items=summary.decided_items,
+                    money_on_table_low_usd=summary.money_on_table_low_usd,
+                    money_on_table_high_usd=summary.money_on_table_high_usd,
+                    public_listing_count=len(summary.public_listings),
+                )
+            )
+        return CashToClearSessionHistoryResponse(sessions=history)
+
+    def get_session_summary(
+        self,
+        owner_uid: str,
+        session_id: str,
+    ) -> CashToClearSessionSummaryResponse:
+        session = self.get_session(owner_uid, session_id)
+        decision_counts = {
+            'keep': 0,
+            'sell': 0,
+            'donate': 0,
+            'trash': 0,
+            'recycle': 0,
+            'relocate': 0,
+            'maybe': 0,
+        }
+        decided_items = 0
+        total_estimated_low = 0.0
+        total_estimated_high = 0.0
+        for item in session.items:
+            total_estimated_low += item.valuation.estimated_low_usd
+            total_estimated_high += item.valuation.estimated_high_usd
+            if item.decision is None:
+                continue
+            decided_items += 1
+            decision_counts[item.decision.decision] = decision_counts.get(item.decision.decision, 0) + 1
+
+        return CashToClearSessionSummaryResponse(
+            session_id=session.session_id,
+            image_storage_key=session.image_storage_key,
+            created_at=session.created_at,
+            total_items=len(session.items),
+            decided_items=decided_items,
+            decision_counts=decision_counts,
+            total_estimated_low_usd=round(total_estimated_low, 2),
+            total_estimated_high_usd=round(total_estimated_high, 2),
+            money_on_table_low_usd=session.money_on_table_low_usd,
+            money_on_table_high_usd=session.money_on_table_high_usd,
+            public_listings=self._public_listing_summaries_for_session(owner_uid, session_id),
+        )
+
+    def _public_listing_summaries_for_session(
+        self,
+        owner_uid: str,
+        session_id: str,
+    ) -> list[SessionPublicListingSummary]:
+        self._require_session(owner_uid, session_id)
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT item_id, listing_id, title
+                FROM public_listings
+                WHERE owner_uid = ? AND session_id = ?
+                ORDER BY created_at ASC
+                """,
+                (owner_uid, session_id),
+            ).fetchall()
+        return [
+            SessionPublicListingSummary(
+                item_id=row['item_id'],
+                listing_id=row['listing_id'],
+                public_url=f"/public/listings/{row['listing_id']}",
+                title=row['title'],
+            )
+            for row in rows
+        ]
 
     def create_public_listing(
         self,
