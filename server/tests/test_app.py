@@ -434,6 +434,28 @@ def test_openai_compatible_analysis_adapter_parses_structured_items(
     assert user_content[1]['image_url']['url'].startswith('data:image/jpeg;base64,')
 
 
+
+def test_openai_compatible_analysis_adapter_parses_fenced_json() -> None:
+    adapter = OpenAICompatibleAnalysisAdapter(
+        base_url='http://host.docker.internal:1234/v1',
+        model='local-vision-model',
+        transport=lambda _url, _payload, _headers, _timeout: {
+            'choices': [
+                {
+                    'message': {
+                        'content': '```json\n{"items":[{"label":"blue book","confidence":0.9}]}\n```'
+                    }
+                }
+            ]
+        },
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.items[0].label == 'blue book'
+    assert result.items[0].confidence == 0.9
+
+
 def test_openai_compatible_analysis_adapter_rejects_empty_choices() -> None:
     adapter = OpenAICompatibleAnalysisAdapter(
         base_url='http://host.docker.internal:1234/v1',

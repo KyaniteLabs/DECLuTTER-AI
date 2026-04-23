@@ -5,6 +5,7 @@ import hashlib
 import json
 import mimetypes
 import os
+import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -192,7 +193,7 @@ class OpenAICompatibleAnalysisAdapter:
             raise RuntimeError("Inference provider returned no message content.")
 
         try:
-            parsed = json.loads(content)
+            parsed = json.loads(_extract_json_object(content))
         except json.JSONDecodeError as exc:
             raise RuntimeError("Inference provider returned non-JSON item output.") from exc
 
@@ -297,3 +298,18 @@ def create_analysis_adapter_from_env() -> MockStructuredAnalysisAdapter | OpenAI
         )
 
     return MockStructuredAnalysisAdapter()
+
+
+def _extract_json_object(content: str) -> str:
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        fenced = re.search(r"```(?:json)?\\s*(\\{.*?\\})\\s*```", stripped, re.DOTALL)
+        if fenced:
+            return fenced.group(1)
+
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start != -1 and end > start:
+        return stripped[start : end + 1]
+
+    return stripped
