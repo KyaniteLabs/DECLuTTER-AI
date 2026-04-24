@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:drift/drift.dart';
 
 import '../../../core/data/app_database.dart';
 import '../../../core/data/database_provider.dart';

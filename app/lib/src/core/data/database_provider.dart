@@ -13,12 +13,7 @@ class DatabaseProvider {
 
   static AppDatabase get instance {
     _instance ??= AppDatabase(
-      driftDatabase(
-        name: 'declutter_ai_db',
-        native: const DriftNativeOptions(
-          databasePath: 'declutter_ai_db.sqlite',
-        ),
-      ),
+      driftDatabase(name: 'declutter_ai_db'),
     );
     return _instance!;
   }

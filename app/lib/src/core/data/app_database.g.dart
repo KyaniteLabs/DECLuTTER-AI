@@ -13,10 +13,13 @@ part of 'app_database.dart';
 // These are intentionally minimal and WILL be replaced by the generator.
 
 class _$AppDatabase extends GeneratedDatabase {
-  _$AppDatabase(super.executor);
+  _$AppDatabase(DatabaseConnection connection) : super(connection);
 
   @override
-  Iterable<TableInfo<Table, Object?>> get allTables => [];
+  Iterable<TableInfo<Table, Object?>> get allTables => [
+        localDecisions,
+        pendingRemoteDecisions,
+      ];
 
   @override
   int get schemaVersion => 1;
