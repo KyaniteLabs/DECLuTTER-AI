@@ -82,40 +82,13 @@ class OnnxDetectionInterpreter implements DetectionInterpreter {
 
   @override
   void run(Object input, Map<int, Object> outputs) {
-    // ONNX runAsync returns fresh output tensors, so we ignore the [outputs]
-    // buffers passed by DetectorService and instead write into them by
-    // copying the results from ONNX. This keeps the calling contract
-    // compatible with TFLite.
-    final inputOrt = OrtValueTensor.createTensorWithDataList(
-      input as List,
-      inputShape,
+    // TODO: DetectionInterpreter.run() is synchronous but ONNX only provides
+    // runAsync(). When ONNX is adopted, the interface needs to become async.
+    throw UnsupportedError(
+      'ONNX inference requires an async run() interface. '
+      'Update DetectionInterpreter.run() to return Future<void> and '
+      'propagate async through DetectorService.',
     );
-    final runOptions = OrtRunOptions();
-
-    try {
-      final inputs = <String, OrtValue>{_inputName: inputOrt};
-      final ortOutputs = await _session.runAsync(runOptions, inputs);
-
-      if (ortOutputs == null) {
-        throw StateError('ONNX inference returned null outputs.');
-      }
-
-      for (var i = 0; i < ortOutputs.length && i < outputCount; i++) {
-        final ortValue = ortOutputs[i];
-        if (ortValue == null) continue;
-        try {
-          final value = ortValue.value;
-          if (value != null) {
-            outputs[i] = value;
-          }
-        } finally {
-          ortValue.release();
-        }
-      }
-    } finally {
-      inputOrt.release();
-      runOptions.release();
-    }
   }
 
   @override
