@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../grouping/domain/detection_group.dart';
 import '../../grouping/domain/grouped_detection_result.dart';
+import '../data/session_decision_repository.dart';
 import '../domain/session_decision.dart';
 import '../services/cash_to_clear_api.dart';
 import 'widgets/focus_timer.dart';
@@ -13,12 +14,14 @@ import 'widgets/quick_start_card.dart';
 class SessionTimerScreen extends StatefulWidget {
   const SessionTimerScreen({
     super.key,
+    required this.sessionKey,
     this.capturedImagePath,
     this.capturedAt,
     this.groupedResult = const GroupedDetectionResult.empty(),
     this.cashToClearApi,
   });
 
+  final String sessionKey;
   final String? capturedImagePath;
   final DateTime? capturedAt;
   final GroupedDetectionResult groupedResult;
@@ -42,6 +45,7 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
   bool _isSyncingCashToClear = false;
   String? _cashToClearSyncMessage;
   bool _ownsCashToClearApi = false;
+  late final SessionDecisionRepository _decisionRepository;
 
   @override
   void initState() {
@@ -49,10 +53,24 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
     _ownsCashToClearApi = widget.cashToClearApi == null;
     _cashToClearApi =
         widget.cashToClearApi ?? CashToClearApiClient.fromEnvironment();
+    _decisionRepository = SessionDecisionRepository();
     if (widget.groupedResult.hasGroups) {
       _selectedGroupId = widget.groupedResult.primaryGroup?.id;
     }
     _bootstrapCashToClearSession();
+    unawaited(_loadPersistedDecisions());
+  }
+
+  Future<void> _loadPersistedDecisions() async {
+    final persisted = await _decisionRepository.loadDecisions(widget.sessionKey);
+    if (!mounted) return;
+    if (persisted.isNotEmpty) {
+      setState(() {
+        _decisions
+          ..clear()
+          ..addAll(persisted);
+      });
+    }
   }
 
   @override
@@ -158,19 +176,18 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       return;
     }
 
+    final decision = SessionDecision(
+      groupId: selectedGroup.id,
+      groupLabel: selectedGroup.friendlyLabel,
+      groupTotal: selectedGroup.count,
+      category: category,
+      createdAt: DateTime.now(),
+      note: note.isEmpty ? null : note,
+    );
     setState(() {
-      _decisions.insert(
-        0,
-        SessionDecision(
-          groupId: selectedGroup.id,
-          groupLabel: selectedGroup.friendlyLabel,
-          groupTotal: selectedGroup.count,
-          category: category,
-          createdAt: DateTime.now(),
-          note: note.isEmpty ? null : note,
-        ),
-      );
+      _decisions.insert(0, decision);
     });
+    unawaited(_decisionRepository.saveDecision(widget.sessionKey, decision));
 
     await _recordRemoteDecision(
       group: selectedGroup,
