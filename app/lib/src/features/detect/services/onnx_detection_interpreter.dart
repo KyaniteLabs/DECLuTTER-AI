@@ -22,10 +22,9 @@ import 'detection_interpreter.dart';
 /// final service = DetectorService(interpreter: interpreter);
 /// ```
 class OnnxDetectionInterpreter implements DetectionInterpreter {
-  OnnxDetectionInterpreter._(this._session, this._inputName, this._outputNames);
+  OnnxDetectionInterpreter._(this._session, this._outputNames);
 
   final OrtSession _session;
-  final String _inputName;
   final List<String> _outputNames;
 
   List<int>? _inputShape;
@@ -50,7 +49,6 @@ class OnnxDetectionInterpreter implements DetectionInterpreter {
 
     return OnnxDetectionInterpreter._(
       session,
-      inputNames.first,
       outputNames,
     );
   }
