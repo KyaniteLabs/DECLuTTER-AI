@@ -71,6 +71,7 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       return;
     }
 
+    if (!mounted) return;
     setState(() {
       _isSyncingCashToClear = true;
       _cashToClearSyncMessage = 'Syncing Cash-to-Clear values...';
@@ -123,6 +124,20 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
         const SnackBar(
             content:
                 Text('Select a highlighted group before logging a decision.')),
+      );
+      return;
+    }
+
+    final alreadyDecided = _decisions.any(
+      (d) => d.groupId == selectedGroup.id && d.category == category,
+    );
+    if (alreadyDecided) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You already decided "${category.label}" for ${selectedGroup.friendlyLabel}.',
+          ),
+        ),
       );
       return;
     }
@@ -190,6 +205,7 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       return;
     }
 
+    if (!mounted) return;
     setState(() {
       _isSyncingCashToClear = true;
       _cashToClearSyncMessage = 'Saving decision to Cash-to-Clear...';
@@ -223,11 +239,13 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
     final pending = List<_PendingRemoteDecision>.from(_pendingRemoteDecisions);
     _pendingRemoteDecisions.clear();
 
+    if (!mounted) return;
     setState(() {
       _isSyncingCashToClear = true;
       _cashToClearSyncMessage = 'Syncing queued decisions...';
     });
 
+    var syncedCount = 0;
     try {
       for (final decision in pending) {
         if (_remoteItemsByGroupId[decision.groupId] == null) {
@@ -235,6 +253,7 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
           continue;
         }
         await _syncRemoteDecision(decision);
+        syncedCount++;
       }
 
       final sessionId = _remoteSessionId;
@@ -253,7 +272,12 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
             : 'Some decisions are still queued for sync.';
       });
     } catch (error) {
-      _pendingRemoteDecisions.insertAll(0, pending);
+      final failed = pending.skip(syncedCount);
+      for (final decision in failed) {
+        if (!_pendingRemoteDecisions.any((p) => p.groupId == decision.groupId && p.category == decision.category)) {
+          _pendingRemoteDecisions.add(decision);
+        }
+      }
       if (!mounted) return;
       setState(() {
         _isSyncingCashToClear = false;
@@ -284,6 +308,7 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
     if (!_cashToClearApi.isConfigured ||
         sessionId == null ||
         remoteItem == null) {
+      if (!mounted) return;
       setState(() {
         _cashToClearSyncMessage =
             'Sync Cash-to-Clear values before creating a page.';
@@ -291,6 +316,7 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
       return;
     }
 
+    if (!mounted) return;
     setState(() {
       _isSyncingCashToClear = true;
       _creatingListingPageGroupIds.add(groupId);
@@ -1066,6 +1092,7 @@ class _DecisionNoteSheetState extends State<_DecisionNoteSheet> {
             autofocus: true,
             textInputAction: TextInputAction.done,
             maxLines: 3,
+            maxLength: 500,
             decoration: const InputDecoration(
               labelText: 'What action did you take?',
               hintText: 'e.g. Boxed kids books for library drop-off',

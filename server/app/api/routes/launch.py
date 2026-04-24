@@ -38,6 +38,7 @@ def launch_landing_page(request: Request) -> str:
       </div>
     """.strip()
 
+    canonical_url = escape(_external_path(request, '/'))
     return """
 <!doctype html>
 <html lang="en">
@@ -138,7 +139,7 @@ def launch_landing_page(request: Request) -> str:
 </html>
 """.replace('__RECENT_LISTINGS_HTML__', recent_listings_html).replace(
         '__CANONICAL_URL__',
-        _external_path(request, '/'),
+        canonical_url,
     ).strip()
 
 
@@ -177,6 +178,12 @@ def launch_status() -> dict[str, object]:
     }
 
 
+def _sanitize_host(host: str) -> str:
+    if any(c in host for c in '<>"\'\n\r\t& `'):
+        return 'invalid-host'
+    return host
+
+
 def _external_path(request: Request, internal_path: str) -> str:
     configured_prefix = os.getenv('DECLUTTER_PUBLIC_BASE_PATH', '').strip('/')
     forwarded_prefix = request.headers.get('x-forwarded-prefix', '').strip('/')
@@ -186,5 +193,5 @@ def _external_path(request: Request, internal_path: str) -> str:
         path = f'/{prefix}{path}'
 
     proto = request.headers.get('x-forwarded-proto', request.url.scheme)
-    host = request.headers.get('host', request.url.netloc)
+    host = _sanitize_host(request.headers.get('host', request.url.netloc))
     return f'{proto}://{host}{path}'

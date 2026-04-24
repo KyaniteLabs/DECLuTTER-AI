@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
+from contextlib import contextmanager
 from uuid import uuid4
 from html import escape
 
@@ -36,10 +38,16 @@ class CashToClearSessionStore:
         valuation_service: MockCompsValuationService | None = None,
         listing_service: ListingDraftService | None = None,
     ) -> None:
-        self.db_path = Path(
-            db_path or os.getenv('DECLUTTER_SESSION_DB_PATH', '/tmp/declutter_ai_sessions.sqlite3')
-        )
+        raw_path = db_path or os.getenv('DECLUTTER_SESSION_DB_PATH', '/tmp/declutter_ai_sessions.sqlite3')
+        self.db_path = Path(raw_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        if '/tmp/' in str(self.db_path):
+            warnings.warn(
+                f'CashToClearSessionStore is using a temporary path ({self.db_path}). '
+                'Set DECLUTTER_SESSION_DB_PATH to a persistent directory to avoid data loss on reboot.',
+                RuntimeWarning,
+                stacklevel=2,
+            )
         self.valuation_service = valuation_service or MockCompsValuationService()
         self.listing_service = listing_service or ListingDraftService()
         self._ensure_schema()
@@ -51,7 +59,7 @@ class CashToClearSessionStore:
     ) -> CashToClearSessionResponse:
         session_id = f'sess_{uuid4().hex}'
         created_at = _utc_now()
-        with self._connect() as conn:
+        with self._db() as conn:
             conn.execute(
                 '''
                 INSERT INTO sessions (session_id, owner_uid, image_storage_key, created_at)
@@ -81,7 +89,7 @@ class CashToClearSessionStore:
         )
         item_id = f'item_{uuid4().hex}'
         created_at = _utc_now()
-        with self._connect() as conn:
+        with self._db() as conn:
             conn.execute(
                 '''
                 INSERT INTO session_items (
@@ -109,7 +117,7 @@ class CashToClearSessionStore:
         self._require_session(owner_uid, session_id)
         self._require_item(owner_uid, session_id, payload.item_id)
         decided_at = _utc_now()
-        with self._connect() as conn:
+        with self._db() as conn:
             conn.execute(
                 '''
                 INSERT INTO session_decisions (item_id, session_id, decision, note, decided_at)
@@ -135,7 +143,7 @@ class CashToClearSessionStore:
 
 
     def list_sessions(self, owner_uid: str) -> CashToClearSessionHistoryResponse:
-        with self._connect() as conn:
+        with self._db() as conn:
             rows = conn.execute(
                 """
                 SELECT session_id, image_storage_key, created_at
@@ -146,19 +154,83 @@ class CashToClearSessionStore:
                 (owner_uid,),
             ).fetchall()
 
+            session_ids = [row['session_id'] for row in rows]
+            items_by_session: dict[str, list[SessionItemResponse]] = {}
+            if session_ids:
+                placeholders = ','.join('?' * len(session_ids))
+                item_rows = conn.execute(
+                    f"""
+                    SELECT
+                        si.session_id,
+                        si.item_id,
+                        si.label,
+                        si.condition,
+                        si.valuation_json,
+                        si.listing_json,
+                        si.created_at,
+                        sd.decision,
+                        sd.note,
+                        sd.decided_at
+                    FROM session_items si
+                    LEFT JOIN session_decisions sd ON sd.item_id = si.item_id
+                    WHERE si.session_id IN ({placeholders})
+                    """,
+                    session_ids,
+                ).fetchall()
+                for r in item_rows:
+                    sid = r['session_id']
+                    if sid not in items_by_session:
+                        items_by_session[sid] = []
+                    decision = None
+                    if r['decision'] is not None:
+                        decision = SessionDecisionResponse(
+                            item_id=r['item_id'],
+                            decision=r['decision'],
+                            note=r['note'],
+                            decided_at=datetime.fromisoformat(r['decided_at']),
+                        )
+                    items_by_session[sid].append(
+                        SessionItemResponse(
+                            item_id=r['item_id'],
+                            label=r['label'],
+                            condition=r['condition'],
+                            valuation=ValuationResponse.model_validate(json.loads(r['valuation_json'])),
+                            listing_draft=ListingDraftResponse.model_validate(json.loads(r['listing_json'])),
+                            decision=decision,
+                            created_at=datetime.fromisoformat(r['created_at']),
+                        )
+                    )
+
+            public_counts: dict[str, int] = {}
+            if session_ids:
+                placeholders = ','.join('?' * len(session_ids))
+                pl_rows = conn.execute(
+                    f"""
+                    SELECT session_id, COUNT(*) as cnt
+                    FROM public_listings
+                    WHERE owner_uid = ? AND session_id IN ({placeholders})
+                    GROUP BY session_id
+                    """,
+                    (owner_uid, *session_ids),
+                ).fetchall()
+                public_counts = {r['session_id']: r['cnt'] for r in pl_rows}
+
         history = []
         for row in rows:
-            summary = self.get_session_summary(owner_uid, row['session_id'])
+            sid = row['session_id']
+            items = items_by_session.get(sid, [])
+            decided_items = sum(1 for item in items if item.decision is not None)
+            low_total, high_total = _money_on_table(items)
             history.append(
                 CashToClearSessionHistoryItem(
-                    session_id=row['session_id'],
+                    session_id=sid,
                     image_storage_key=row['image_storage_key'],
                     created_at=datetime.fromisoformat(row['created_at']),
-                    total_items=summary.total_items,
-                    decided_items=summary.decided_items,
-                    money_on_table_low_usd=summary.money_on_table_low_usd,
-                    money_on_table_high_usd=summary.money_on_table_high_usd,
-                    public_listing_count=len(summary.public_listings),
+                    total_items=len(items),
+                    decided_items=decided_items,
+                    money_on_table_low_usd=round(low_total, 2),
+                    money_on_table_high_usd=round(high_total, 2),
+                    public_listing_count=public_counts.get(sid, 0),
                 )
             )
         return CashToClearSessionHistoryResponse(sessions=history)
@@ -209,7 +281,7 @@ class CashToClearSessionStore:
         session_id: str,
     ) -> list[SessionPublicListingSummary]:
         self._require_session(owner_uid, session_id)
-        with self._connect() as conn:
+        with self._db() as conn:
             rows = conn.execute(
                 """
                 SELECT item_id, listing_id, title
@@ -238,7 +310,7 @@ class CashToClearSessionStore:
         item = self._get_item(owner_uid, session_id, item_id)
         listing_id = f'pub_{uuid4().hex}'
         created_at = _utc_now()
-        with self._connect() as conn:
+        with self._db() as conn:
             conn.execute(
                 """
                 INSERT INTO public_listings (
@@ -261,16 +333,22 @@ class CashToClearSessionStore:
             )
         return self.get_public_listing(listing_id)
 
-    def get_public_listing(self, listing_id: str) -> PublicListingResponse:
-        with self._connect() as conn:
-            row = conn.execute(
-                """
-                SELECT listing_id, title, description, condition, price_usd, category_hint, created_at
-                FROM public_listings
-                WHERE listing_id = ?
-                """,
-                (listing_id,),
-            ).fetchone()
+    def get_public_listing(
+        self,
+        listing_id: str,
+        owner_uid: str | None = None,
+    ) -> PublicListingResponse:
+        query = """
+            SELECT listing_id, title, description, condition, price_usd, category_hint, created_at
+            FROM public_listings
+            WHERE listing_id = ?
+        """
+        params: list[str] = [listing_id]
+        if owner_uid is not None:
+            query += " AND owner_uid = ?"
+            params.append(owner_uid)
+        with self._db() as conn:
+            row = conn.execute(query, params).fetchone()
         if row is None:
             raise KeyError('Public listing not found.')
         return PublicListingResponse(
@@ -284,18 +362,24 @@ class CashToClearSessionStore:
             created_at=datetime.fromisoformat(row['created_at']),
         )
 
-    def list_recent_public_listings(self, limit: int = 6) -> list[PublicListingResponse]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT listing_id
-                FROM public_listings
-                ORDER BY created_at DESC
-                LIMIT ?
-                """,
-                (limit,),
-            ).fetchall()
-        return [self.get_public_listing(row['listing_id']) for row in rows]
+    def list_recent_public_listings(
+        self,
+        limit: int = 6,
+        owner_uid: str | None = None,
+    ) -> list[PublicListingResponse]:
+        query = """
+            SELECT listing_id
+            FROM public_listings
+        """
+        params: list[str | int] = []
+        if owner_uid is not None:
+            query += " WHERE owner_uid = ?"
+            params.append(owner_uid)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        with self._db() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [self.get_public_listing(row['listing_id'], owner_uid=owner_uid) for row in rows]
 
     def render_public_listing_html(
         self,
@@ -354,7 +438,7 @@ class CashToClearSessionStore:
 </html>"""
 
     def get_session(self, owner_uid: str, session_id: str) -> CashToClearSessionResponse:
-        with self._connect() as conn:
+        with self._db() as conn:
             session_row = conn.execute(
                 '''
                 SELECT session_id, image_storage_key, created_at
@@ -388,7 +472,7 @@ class CashToClearSessionStore:
 
     def _get_item(self, owner_uid: str, session_id: str, item_id: str) -> SessionItemResponse:
         self._require_session(owner_uid, session_id)
-        with self._connect() as conn:
+        with self._db() as conn:
             row = conn.execute(
                 '''
                 SELECT item_id, label, condition, valuation_json, listing_json, created_at
@@ -425,7 +509,7 @@ class CashToClearSessionStore:
         item_id: str,
     ) -> SessionDecisionResponse | None:
         self._require_session(owner_uid, session_id)
-        with self._connect() as conn:
+        with self._db() as conn:
             row = conn.execute(
                 '''
                 SELECT item_id, decision, note, decided_at
@@ -444,7 +528,7 @@ class CashToClearSessionStore:
         )
 
     def _require_session(self, owner_uid: str, session_id: str) -> None:
-        with self._connect() as conn:
+        with self._db() as conn:
             exists = conn.execute(
                 'SELECT 1 FROM sessions WHERE owner_uid = ? AND session_id = ?',
                 (owner_uid, session_id),
@@ -454,7 +538,7 @@ class CashToClearSessionStore:
 
     def _require_item(self, owner_uid: str, session_id: str, item_id: str) -> None:
         self._require_session(owner_uid, session_id)
-        with self._connect() as conn:
+        with self._db() as conn:
             exists = conn.execute(
                 'SELECT 1 FROM session_items WHERE session_id = ? AND item_id = ?',
                 (session_id, item_id),
@@ -463,7 +547,7 @@ class CashToClearSessionStore:
             raise KeyError('Item not found for this session.')
 
     def _ensure_schema(self) -> None:
-        with self._connect() as conn:
+        with self._db() as conn:
             conn.executescript(
                 '''
                 CREATE TABLE IF NOT EXISTS sessions (
@@ -509,6 +593,17 @@ class CashToClearSessionStore:
                     FOREIGN KEY(item_id) REFERENCES session_items(item_id),
                     FOREIGN KEY(session_id) REFERENCES sessions(session_id)
                 );
+
+                CREATE INDEX IF NOT EXISTS idx_sessions_owner_created
+                    ON sessions(owner_uid, created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_session_items_session
+                    ON session_items(session_id);
+                CREATE INDEX IF NOT EXISTS idx_public_listings_owner_session
+                    ON public_listings(owner_uid, session_id);
+                CREATE INDEX IF NOT EXISTS idx_public_listings_created
+                    ON public_listings(created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_session_decisions_session
+                    ON session_decisions(session_id);
                 '''
             )
             session_columns = {
@@ -523,6 +618,15 @@ class CashToClearSessionStore:
         conn.row_factory = sqlite3.Row
         conn.execute('PRAGMA foreign_keys = ON')
         return conn
+
+    @contextmanager
+    def _db(self):
+        conn = self._connect()
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def _utc_now() -> datetime:

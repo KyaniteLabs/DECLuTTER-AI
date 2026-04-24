@@ -93,6 +93,13 @@ class DetectorService {
     _isInitialized = true;
   }
 
+  /// Releases the interpreter and clears internal state.
+  void dispose() {
+    _interpreter?.close();
+    _interpreter = null;
+    _isInitialized = false;
+  }
+
   /// Runs detection on the provided [imagePath]. If the real model is not
   /// available (e.g. in CI or local tests), it returns mock detections from the
   /// debug JSON asset to unblock UI development.
@@ -118,7 +125,12 @@ class DetectorService {
         : Size.zero;
 
     if (_useMockDetections || _interpreter == null) {
-      return _mockDetectionResult(originalSize);
+      return _mockDetectionResult(
+        originalSize,
+        reason: _useMockDetections
+            ? 'Running in demo mode — model unavailable on this platform.'
+            : 'Model interpreter not initialized.',
+      );
     }
 
     final stopwatch = Stopwatch()..start();
@@ -138,7 +150,10 @@ class DetectorService {
       debugPrint(
           'DetectorService: inference failure ($error); using mock data.');
       stopwatch.stop();
-      return _mockDetectionResult(originalSize);
+      return _mockDetectionResult(
+        originalSize,
+        reason: 'Inference failed: $error',
+      );
     }
   }
 
@@ -147,13 +162,17 @@ class DetectorService {
     return img.decodeImage(bytes);
   }
 
-  Future<DetectionResult> _mockDetectionResult(Size originalSize) async {
+  Future<DetectionResult> _mockDetectionResult(
+    Size originalSize, {
+    String? reason,
+  }) async {
     final detections = await _loadMockDetections();
     return DetectionResult(
       detections: detections,
       originalSize: originalSize,
       isMocked: true,
       inferenceTime: _mockInferenceDuration,
+      mockReason: reason ?? 'Using demo detections.',
     );
   }
 
