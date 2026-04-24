@@ -225,18 +225,30 @@ class OpenAICompatibleAnalysisAdapter:
             payload["response_format"] = {"type": "text"}
         return payload
 
+    _MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB cap before base64 encoding
+
     def _image_data_url(self, image_storage_key: str) -> str | None:
         candidate = (self.upload_dir / image_storage_key).resolve()
+        # Resolve symlinks and verify the real path is still under upload_dir
         try:
-            candidate.relative_to(self.upload_dir.resolve())
-        except ValueError:
+            real_path = candidate.resolve()
+            real_upload_dir = self.upload_dir.resolve()
+            real_path.relative_to(real_upload_dir)
+        except (ValueError, OSError):
             return None
 
-        if not candidate.is_file():
+        if not real_path.is_file():
             return None
 
-        content_type = mimetypes.guess_type(candidate.name)[0] or "image/jpeg"
-        encoded = base64.b64encode(candidate.read_bytes()).decode("ascii")
+        file_size = real_path.stat().st_size
+        if file_size > self._MAX_IMAGE_BYTES:
+            raise RuntimeError(
+                f"Image size ({file_size} bytes) exceeds the "
+                f"{self._MAX_IMAGE_BYTES // (1024 * 1024)}MB analysis limit."
+            )
+
+        content_type = mimetypes.guess_type(real_path.name)[0] or "image/jpeg"
+        encoded = base64.b64encode(real_path.read_bytes()).decode("ascii")
         return f"data:{content_type};base64,{encoded}"
 
     @staticmethod

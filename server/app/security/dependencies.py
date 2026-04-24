@@ -19,6 +19,8 @@ def require_firebase_protection(
     verifier: FirebaseTokenVerifier = Depends(get_firebase_verifier),
 ) -> None:
     if verifier.settings.auth_mode == "off":
+        request.state.user_claims = {"uid": "local-dev"}
+        request.state.app_claims = {"app_id": "local-dev"}
         return
 
     if not authorization or not authorization.startswith("Bearer "):

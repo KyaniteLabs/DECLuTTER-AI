@@ -333,16 +333,22 @@ class CashToClearSessionStore:
             )
         return self.get_public_listing(listing_id)
 
-    def get_public_listing(self, listing_id: str) -> PublicListingResponse:
+    def get_public_listing(
+        self,
+        listing_id: str,
+        owner_uid: str | None = None,
+    ) -> PublicListingResponse:
+        query = """
+            SELECT listing_id, title, description, condition, price_usd, category_hint, created_at
+            FROM public_listings
+            WHERE listing_id = ?
+        """
+        params: list[str] = [listing_id]
+        if owner_uid is not None:
+            query += " AND owner_uid = ?"
+            params.append(owner_uid)
         with self._db() as conn:
-            row = conn.execute(
-                """
-                SELECT listing_id, title, description, condition, price_usd, category_hint, created_at
-                FROM public_listings
-                WHERE listing_id = ?
-                """,
-                (listing_id,),
-            ).fetchone()
+            row = conn.execute(query, params).fetchone()
         if row is None:
             raise KeyError('Public listing not found.')
         return PublicListingResponse(
@@ -356,18 +362,24 @@ class CashToClearSessionStore:
             created_at=datetime.fromisoformat(row['created_at']),
         )
 
-    def list_recent_public_listings(self, limit: int = 6) -> list[PublicListingResponse]:
+    def list_recent_public_listings(
+        self,
+        limit: int = 6,
+        owner_uid: str | None = None,
+    ) -> list[PublicListingResponse]:
+        query = """
+            SELECT listing_id
+            FROM public_listings
+        """
+        params: list[str | int] = []
+        if owner_uid is not None:
+            query += " WHERE owner_uid = ?"
+            params.append(owner_uid)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
         with self._db() as conn:
-            rows = conn.execute(
-                """
-                SELECT listing_id
-                FROM public_listings
-                ORDER BY created_at DESC
-                LIMIT ?
-                """,
-                (limit,),
-            ).fetchall()
-        return [self.get_public_listing(row['listing_id']) for row in rows]
+            rows = conn.execute(query, params).fetchall()
+        return [self.get_public_listing(row['listing_id'], owner_uid=owner_uid) for row in rows]
 
     def render_public_listing_html(
         self,
