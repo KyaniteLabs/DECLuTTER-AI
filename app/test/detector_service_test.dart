@@ -5,8 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:tflite_flutter/tflite_flutter.dart';
-
+import 'package:declutter_ai/src/features/detect/domain/tensor_type.dart';
 import 'package:declutter_ai/src/features/detect/services/detection_interpreter.dart';
 import 'package:declutter_ai/src/features/detect/services/detector_service.dart';
 
