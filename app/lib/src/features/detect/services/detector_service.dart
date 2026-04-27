@@ -137,7 +137,10 @@ class DetectorService {
     await initialize();
 
     if (kIsWeb) {
-      return const DetectionResult.empty();
+      return _mockDetectionResult(
+        const Size(1280, 720),
+        reason: 'Web demo mode — using sample detections.',
+      );
     }
 
     final file = File(imagePath);

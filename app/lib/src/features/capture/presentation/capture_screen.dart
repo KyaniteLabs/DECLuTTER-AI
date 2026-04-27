@@ -199,9 +199,7 @@ class _CaptureScreenState extends State<CaptureScreen>
         _lastCaptureBytes = bytes;
         _lastCapturePersistentPath = persistentPath;
       });
-      if (!kIsWeb) {
-        unawaited(_analyzeCaptureWithFeedback(capture));
-      }
+      unawaited(_analyzeCaptureWithFeedback(capture));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -354,52 +352,45 @@ class _CaptureScreenState extends State<CaptureScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!kIsWeb)
-            ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
-              child: AspectRatio(
-                aspectRatio: _previewAspectRatio(),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.memory(
-                      _lastCaptureBytes!,
-                      fit: BoxFit.cover,
+          ClipRRect(
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(12)),
+            child: AspectRatio(
+              aspectRatio: _previewAspectRatio(),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.memory(
+                    _lastCaptureBytes!,
+                    fit: BoxFit.cover,
+                  ),
+                  if (_detectionResult != null && !_detectionResult!.isEmpty)
+                    CustomPaint(
+                      size: Size.infinite,
+                      painter: DetectionDebugPainter(_detectionResult!),
                     ),
-                    if (_detectionResult != null && !_detectionResult!.isEmpty)
-                      CustomPaint(
-                        size: Size.infinite,
-                        painter: DetectionDebugPainter(_detectionResult!),
+                  if (_isAnalyzingCapture)
+                    Container(
+                      color: Colors.black54,
+                      child: const Center(
+                        child: CircularProgressIndicator(),
                       ),
-                    if (_isAnalyzingCapture)
-                      Container(
-                        color: Colors.black54,
-                        child: const Center(
-                          child: CircularProgressIndicator(),
-                        ),
+                    ),
+                  if (_analysisError != null)
+                    Container(
+                      color: Colors.black54,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(16),
+                      child: const Text(
+                        'Analysis failed. Try another snap with steadier lighting.',
+                        style: TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
                       ),
-                    if (_analysisError != null)
-                      Container(
-                        color: Colors.black54,
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.all(16),
-                        child: const Text(
-                          'Analysis failed. Try another snap with steadier lighting.',
-                          style: TextStyle(color: Colors.white),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-            )
-          else
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                  'Preview unsupported on this platform, but the capture path is saved.'),
             ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -448,11 +439,6 @@ class _CaptureScreenState extends State<CaptureScreen>
   }
 
   Widget _buildAnalysisStatus() {
-    if (kIsWeb) {
-      return const Text(
-          'Detection preview is coming soon for web builds. Continue to practice the flow.');
-    }
-
     if (_isAnalyzingCapture) {
       return const Row(
         children: [
