@@ -41,7 +41,6 @@ class ValuationService {
   final HttpClient _httpClient;
 
   bool get isConfigured =>
-      !kIsWeb &&
       _baseUrl.isNotEmpty &&
       _idToken.isNotEmpty &&
       _appCheckToken.isNotEmpty;
@@ -79,12 +78,15 @@ class ValuationService {
   Future<Valuation> _postValuation(_ValuationRequest request) async {
     final req = await _httpClient.openUrl(
       'POST',
-      Uri.parse('$_baseUrl/valuation'),
+      Uri.parse('$_baseUrl/valuation/estimate'),
     );
     req.headers.contentType = ContentType.json;
     req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_idToken');
     req.headers.set('X-Firebase-AppCheck', _appCheckToken);
-    req.write(jsonEncode(request.toJson()));
+    req.write(jsonEncode({
+      'label': request.category,
+      'condition': request.condition,
+    }));
 
     final response = await req.close();
     final body = await response.transform(utf8.decoder).join();

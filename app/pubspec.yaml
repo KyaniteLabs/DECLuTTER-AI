@@ -24,6 +24,7 @@ dependencies:
   # removed in a future release once ONNX coverage is verified on all targets.
   onnxruntime: ^1.4.1
   share_plus: ^10.0.0
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
