@@ -24,11 +24,17 @@ class HttpClient {
 }
 
 class HttpClientRequest {
-  final HttpHeaders headers = HttpHeaders();
+  final WebHttpHeaders headers = WebHttpHeaders();
   void write(Object? object) {}
   Future<HttpClientResponse> close() async {
     throw UnsupportedError('HttpClient is not available on web.');
   }
+}
+
+class WebHttpHeaders {
+  String? contentType;
+
+  void set(String name, Object value) {}
 }
 
 class HttpClientResponse {

@@ -9,7 +9,8 @@ import 'package:image/image.dart' as img;
 import '../domain/detection.dart';
 import 'detection_interpreter.dart';
 import 'image_tensor_builder.dart';
-import 'onnx_detection_interpreter.dart';
+import '_onnx_initializer.dart'
+    if (dart.library.html) '_onnx_initializer_web.dart';
 import 'output_tensor_buffer.dart';
 import '_tflite_initializer.dart'
     if (dart.library.html) '_tflite_initializer_web.dart';
@@ -84,8 +85,14 @@ class DetectorService {
       try {
         final DetectionInterpreter interpreter;
         if (_modelAssetPath.endsWith('.onnx')) {
-          interpreter =
-              await OnnxDetectionInterpreter.fromAsset(_modelAssetPath);
+          final onnxInterpreter =
+              await createOnnxInterpreter(_modelAssetPath);
+          if (onnxInterpreter == null) {
+            throw FlutterError(
+              'ONNX interpreter is not available on this platform.',
+            );
+          }
+          interpreter = onnxInterpreter;
         } else if (_modelAssetPath.endsWith('.tflite')) {
           final tfliteInterpreter =
               await createTfliteInterpreter(_modelAssetPath);
