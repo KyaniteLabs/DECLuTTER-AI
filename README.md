@@ -133,6 +133,17 @@ Every screen follows these rules:
 
 ---
 
+## 🏆 Why DECLuTTER AI?
+
+| | DECLuTTER AI | Tody | Decluttr | General AI Apps |
+|---|---|---|---|---|
+| **Open Source** | ✅ MIT | ❌ Paid | ❌ | ⚠️ Rare |
+| **ADHD-Focused** | ✅ Core mission | ❌ | ❌ | ❌ |
+| **On-Device Detection** | ✅ ONNX | ❌ N/A | ❌ | ❌ Cloud-only |
+| **Resale Valuation** | ✅ Built-in | ❌ | ✅ | ❌ |
+| **Privacy-First** | ✅ Default | ⚠️ | ❌ | ❌ |
+| **Free** | ✅ | ❌ Paid | ❌ Takes cut | ⚠️ Freemium |
+
 ## 🗺️ Roadmap
 
 - [x] Photo capture + on-device detection
