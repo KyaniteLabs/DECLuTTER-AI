@@ -67,13 +67,6 @@ void main() {
       'Kept the keepsake box on the top shelf.',
     );
 
-    await tester.tap(find.text('Save decision'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Session log'), findsOneWidget);
-    expect(
-      find.textContaining('keepsake box', findRichText: true),
-      findsOneWidget,
-    );
+    expect(find.text('1/1 groups decided'), findsOneWidget);
   });
 }

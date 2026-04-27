@@ -64,7 +64,7 @@ void main() {
     };
 
     final valuations = <String, Valuation?>{
-      'g1': const Valuation(low: 5, mid: 10, high: 15, confidence: 'high'),
+      'g1': const Valuation(low: 5, mid: 10, high: 15, confidence: 0.3),
       'g2': null,
     };
 
@@ -162,7 +162,7 @@ void main() {
           ),
         },
         valuations: {
-          'g1': const Valuation(low: 1, mid: 2, high: 3, confidence: 'high'),
+          'g1': const Valuation(low: 1, mid: 2, high: 3, confidence: 0.3),
         },
         duration: Duration.zero,
       );
@@ -175,7 +175,7 @@ void main() {
       );
       expect(
         lines[1],
-        'Books,books,Keep,"Note with ""quotes"", and commas",1,1.00,2.00,3.00,high',
+        'Books,books,Keep,"Note with ""quotes"", and commas",1,1.00,2.00,3.00,30%',
       );
     });
 

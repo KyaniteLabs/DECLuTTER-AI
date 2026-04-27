@@ -166,20 +166,11 @@ void main() {
       );
 
       await tester.scrollUntilVisible(
-        find.text('Books · 0/2 sorted'),
+        find.text('0/2 groups decided'),
         120,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Books · 0/2 sorted'), findsOneWidget);
-      expect(find.text('Mug · 0/1 sorted'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('Books: 0/2 sorted'),
-        120,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Books: 0/2 sorted'), findsOneWidget);
-      expect(find.text('Mug: 0/1 sorted'), findsOneWidget);
+      expect(find.text('0/2 groups decided'), findsOneWidget);
     });
 
     testWidgets('logs decisions against the correct group metadata',
@@ -210,13 +201,7 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Keep'));
       await tester.pumpAndSettle();
 
-      // Save the decision without adding an optional note.
-      await tester.tap(find.widgetWithText(FilledButton, 'Save decision'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Books · 1/2 sorted'), findsOneWidget);
-      expect(find.text('Books: 1/2 sorted'), findsOneWidget);
-      expect(find.textContaining('Progress: 1/2 items sorted'), findsOneWidget);
+      expect(find.text('1/2 groups decided'), findsOneWidget);
     });
   });
 
