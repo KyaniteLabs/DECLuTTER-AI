@@ -69,6 +69,7 @@ def run_analysis(payload: AnalysisRequest) -> AnalysisResponse:
     return AnalysisResponse(
         session_id=payload.session_id,
         items=result.items,
+        total_estimated_value_usd=result.total_estimated_value_usd,
         engine=result.engine,
         structured_output_version=result.structured_output_version,
     )

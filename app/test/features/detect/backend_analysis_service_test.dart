@@ -38,8 +38,8 @@ void main() {
           return http.Response(
             jsonEncode({
               'items': [
-                {'label': 'book', 'confidence': 0.92},
-                {'label': 'phone', 'confidence': 0.85},
+                {'label': 'book', 'confidence': 0.92, 'estimated_value_usd': 7.5},
+                {'label': 'phone', 'confidence': 0.85, 'estimated_value_usd': 45.0},
               ]
             }),
             200,
@@ -57,6 +57,8 @@ void main() {
       expect(result, isNotNull);
       expect(result!.detections.length, 2);
       expect(result.detections.first.label, 'book');
+      expect(result.detections.first.estimatedValueUsd, 7.5);
+      expect(result.detections.last.estimatedValueUsd, 45.0);
       expect(result.isMocked, isFalse);
     });
 

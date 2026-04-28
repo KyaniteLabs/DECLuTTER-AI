@@ -23,10 +23,12 @@ class IntakeSessionResponse(BaseModel):
 class DetectedItem(BaseModel):
     label: str
     confidence: float = Field(ge=0, le=1)
+    estimated_value_usd: float = Field(default=0.0, ge=0, le=50000)
 
 
 class AnalysisResponse(BaseModel):
     session_id: str
     items: list[DetectedItem]
+    total_estimated_value_usd: float = Field(default=0.0, ge=0)
     engine: str
     structured_output_version: str

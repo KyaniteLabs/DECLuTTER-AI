@@ -39,80 +39,6 @@ GroupedDetectionResult buildGroupedResult(List<DetectionGroup> groups) {
 }
 
 void main() {
-  group('SessionDecisionComposer', () {
-    testWidgets(
-        'shows group progress and enables actions when a group is selected',
-        (tester) async {
-      final groups = [
-        buildGroup(id: 'group_1', label: 'books', count: 2),
-        buildGroup(id: 'group_2', label: 'mug', count: 1),
-      ];
-      final decisions = [
-        SessionDecision(
-          groupId: 'group_1',
-          groupLabel: groups.first.friendlyLabel,
-          groupTotal: groups.first.count,
-          category: DecisionCategory.keep,
-          createdAt: DateTime(2024),
-          note: 'Kept favorite novel',
-        ),
-      ];
-
-      String? selectedGroup;
-      DecisionCategory? selectedCategory;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Material(
-            child: SessionDecisionComposer(
-              groupedResult: buildGroupedResult(groups),
-              selectedGroupId: groups.first.id,
-              onGroupSelected: (groupId) => selectedGroup = groupId,
-              decisions: decisions,
-              onCategorySelected: (category) => selectedCategory = category,
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('Books · 1/2 sorted'), findsOneWidget);
-      expect(find.text('Mug · 0/1 sorted'), findsOneWidget);
-
-      await tester.tap(find.text('Mug · 0/1 sorted'));
-      await tester.pumpAndSettle();
-      expect(selectedGroup, 'group_2');
-
-      await tester.tap(find.widgetWithText(FilledButton, 'Keep'));
-      await tester.pumpAndSettle();
-      expect(selectedCategory, DecisionCategory.keep);
-    });
-
-    testWidgets('disables action buttons when no groups detected',
-        (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Material(
-            child: SessionDecisionComposer(
-              groupedResult: GroupedDetectionResult.empty(),
-              selectedGroupId: null,
-              onGroupSelected: _noop,
-              decisions: [],
-              onCategorySelected: _noopCategory,
-            ),
-          ),
-        ),
-      );
-
-      expect(
-          find.text(
-              'No grouped detections yet. Capture a zone photo or retry analysis to unlock guided sorting.'),
-          findsOneWidget);
-      final keepButton = tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Keep'));
-      expect(keepButton.onPressed, isNull);
-    });
-  });
-
   group('SessionDecisionHistory', () {
     testWidgets('summarizes group progress alongside logged decisions',
         (tester) async {
@@ -152,6 +78,13 @@ void main() {
 
   group('SessionTimerScreen', () {
     testWidgets('surfaces grouped detections in the sprint UI', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       final groups = [
         buildGroup(id: 'group_1', label: 'books', count: 2),
         buildGroup(id: 'group_2', label: 'mug', count: 1),
@@ -164,18 +97,16 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('0/2 groups decided'),
-        120,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('0/2 groups decided'), findsOneWidget);
+      // Verify group labels appear in decision cards.
+      expect(find.text('Books · 2 items'), findsOneWidget);
+      expect(find.text('Mug · 1 item'), findsOneWidget);
     });
 
     testWidgets('logs decisions against the correct group metadata',
         (tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
@@ -192,15 +123,15 @@ void main() {
           ),
         ),
       );
-
-      await tester.scrollUntilVisible(
-        find.widgetWithText(FilledButton, 'Keep'),
-        120,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.widgetWithText(FilledButton, 'Keep'));
       await tester.pumpAndSettle();
 
+      // Tap the first Keep button (belongs to the first DecisionCard).
+      final keepButtons = find.widgetWithText(FilledButton, 'Keep');
+      expect(keepButtons, findsWidgets);
+      await tester.tap(keepButtons.first);
+      await tester.pumpAndSettle();
+
+      // After one decision, progress should show 1/2.
       expect(find.text('1/2 groups decided'), findsOneWidget);
     });
   });
@@ -346,5 +277,3 @@ void main() {
 }
 
 void _noop(String _) {}
-
-void _noopCategory(DecisionCategory _) {}

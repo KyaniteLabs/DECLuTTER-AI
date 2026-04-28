@@ -1375,3 +1375,329 @@ def test_keyerror_returns_404_with_correlation_id(monkeypatch) -> None:
     body = response.json()
     assert body['error'] == 'Not found'
     assert 'correlation_id' in body
+
+
+# ---------------------------------------------------------------------------
+# Anthropic adapter tests
+# ---------------------------------------------------------------------------
+
+from services.analysis_adapter import AnthropicAnalysisAdapter
+
+
+def test_anthropic_analysis_adapter_parses_content_blocks() -> None:
+    adapter = AnthropicAnalysisAdapter(
+        base_url='https://api.anthropic.com',
+        model='claude-3-5-sonnet',
+        api_key='test-key',
+        transport=lambda _url, _payload, _headers, _timeout: {
+            'content': [
+                {
+                    'text': (
+                        '{"items":[{"label":"vintage camera","confidence":0.92},'
+                        '{"label":"leather bag","confidence":0.87}]}'
+                    )
+                }
+            ]
+        },
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.engine == 'anthropic:claude-3-5-sonnet'
+    assert [item.label for item in result.items] == ['vintage camera', 'leather bag']
+    assert result.items[0].confidence == 0.92
+    assert result.items[1].confidence == 0.87
+
+
+def test_anthropic_analysis_adapter_retries_with_fallback_prompt() -> None:
+    calls: list[dict[str, object]] = []
+
+    def flaky_transport(
+        _url: str,
+        payload: dict[str, object],
+        _headers: dict[str, str],
+        _timeout: float,
+    ) -> dict[str, object]:
+        calls.append(payload)
+        if len(calls) == 1:
+            return {'content': [{'text': ''}]}
+        return {
+            'content': [
+                {
+                    'text': (
+                        '{"items":[{"label":"blue book","confidence":0.9}]}'
+                    )
+                }
+            ]
+        }
+
+    adapter = AnthropicAnalysisAdapter(
+        base_url='https://api.anthropic.com',
+        model='claude-3-haiku',
+        transport=flaky_transport,
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.items[0].label == 'blue book'
+    assert len(calls) == 2
+    assert 'Do not include markdown.' in calls[0]['system']
+    assert 'identify the visible items' in calls[1]['system'].lower()
+
+
+def test_anthropic_analysis_adapter_rejects_empty_content() -> None:
+    adapter = AnthropicAnalysisAdapter(
+        base_url='https://api.anthropic.com',
+        model='claude-3-haiku',
+        transport=lambda _url, _payload, _headers, _timeout: {'content': []},
+    )
+
+    try:
+        adapter.run('intake/missing.jpg')
+    except RuntimeError as exc:
+        assert 'Anthropic provider returned no content blocks.' in str(exc)
+        assert 'Payload 1:' in str(exc)
+    else:
+        raise AssertionError('empty content should raise RuntimeError')
+
+
+def test_anthropic_analysis_adapter_sends_correct_headers() -> None:
+    captured: dict[str, object] = {}
+
+    def capture_transport(
+        url: str,
+        payload: dict[str, object],
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, object]:
+        captured['url'] = url
+        captured['headers'] = headers
+        return {
+            'content': [
+                {'text': '{"items":[{"label":"test","confidence":0.5}]}'}
+            ]
+        }
+
+    adapter = AnthropicAnalysisAdapter(
+        base_url='https://api.anthropic.com',
+        model='claude-3-opus',
+        api_key='sk-ant-test',
+        transport=capture_transport,
+    )
+
+    adapter.run('intake/missing.jpg')
+
+    assert captured['url'] == 'https://api.anthropic.com/v1/messages'
+    assert captured['headers']['Content-Type'] == 'application/json'
+    assert captured['headers']['anthropic-version'] == '2023-06-01'
+    assert captured['headers']['x-api-key'] == 'sk-ant-test'
+
+
+# ---------------------------------------------------------------------------
+# Ollama adapter tests
+# ---------------------------------------------------------------------------
+
+from services.analysis_adapter import OllamaAnalysisAdapter
+
+
+def test_ollama_analysis_adapter_parses_response() -> None:
+    adapter = OllamaAnalysisAdapter(
+        base_url='http://localhost:11434',
+        model='llava',
+        transport=lambda _url, _payload, _headers, _timeout: {
+            'response': (
+                '{"items":[{"label":"wooden chair","confidence":0.85},'
+                '{"label":"desk lamp","confidence":0.78}]}'
+            )
+        },
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.engine == 'ollama:llava'
+    assert [item.label for item in result.items] == ['wooden chair', 'desk lamp']
+    assert result.items[0].confidence == 0.85
+
+
+def test_ollama_analysis_adapter_sends_native_format() -> None:
+    captured: dict[str, object] = {}
+
+    def capture_transport(
+        url: str,
+        payload: dict[str, object],
+        headers: dict[str, str],
+        timeout: float,
+    ) -> dict[str, object]:
+        captured['url'] = url
+        captured['payload'] = payload
+        captured['headers'] = headers
+        return {'response': '{"items":[{"label":"test","confidence":0.5}]}'}
+
+    adapter = OllamaAnalysisAdapter(
+        base_url='http://localhost:11434',
+        model='llava-phi3',
+        api_key='ollama-key',
+        transport=capture_transport,
+    )
+
+    adapter.run('intake/missing.jpg')
+
+    assert captured['url'] == 'http://localhost:11434/api/generate'
+    assert captured['headers']['Content-Type'] == 'application/json'
+    assert captured['headers']['Authorization'] == 'Bearer ollama-key'
+
+    payload = captured['payload']
+    assert payload['model'] == 'llava-phi3'
+    assert payload['format'] == 'json'
+    assert payload['stream'] is False
+    assert payload['options']['temperature'] == 0
+    assert payload['options']['num_predict'] == 256
+    assert 'images' in payload
+
+
+def test_ollama_analysis_adapter_retries_with_fallback_prompt() -> None:
+    calls: list[dict[str, object]] = []
+
+    def flaky_transport(
+        _url: str,
+        payload: dict[str, object],
+        _headers: dict[str, str],
+        _timeout: float,
+    ) -> dict[str, object]:
+        calls.append(payload)
+        if len(calls) == 1:
+            return {'response': ''}
+        return {'response': '{"items":[{"label":"mug","confidence":0.82}]}'}
+
+    adapter = OllamaAnalysisAdapter(
+        base_url='http://localhost:11434',
+        model='llava',
+        transport=flaky_transport,
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.items[0].label == 'mug'
+    assert len(calls) == 2
+    assert 'Analyze this decluttering image' in calls[0]['prompt']
+    assert 'Identify the visible items' in calls[1]['prompt']
+
+
+def test_ollama_analysis_adapter_rejects_empty_response() -> None:
+    adapter = OllamaAnalysisAdapter(
+        base_url='http://localhost:11434',
+        model='llava',
+        transport=lambda _url, _payload, _headers, _timeout: {'response': ''},
+    )
+
+    try:
+        adapter.run('intake/missing.jpg')
+    except RuntimeError as exc:
+        assert 'Ollama provider returned empty response.' in str(exc)
+        assert 'Payload 1:' in str(exc)
+    else:
+        raise AssertionError('empty response should raise RuntimeError')
+
+
+# ---------------------------------------------------------------------------
+# Valuation parsing tests
+# ---------------------------------------------------------------------------
+
+from services.analysis_adapter import (
+    AnalysisResult,
+    MockStructuredAnalysisAdapter,
+    OpenAICompatibleAnalysisAdapter,
+)
+
+
+def test_mock_adapter_returns_positive_total_estimated_value() -> None:
+    adapter = MockStructuredAnalysisAdapter()
+    result = adapter.run('intake/any.jpg')
+    assert result.total_estimated_value_usd > 0
+    assert all(item.estimated_value_usd >= 0 for item in result.items)
+
+
+def test_openai_compatible_adapter_parses_estimated_value_usd() -> None:
+    adapter = OpenAICompatibleAnalysisAdapter(
+        base_url='http://host.docker.internal:1234/v1',
+        model='local-vision-model',
+        transport=lambda _url, _payload, _headers, _timeout: {
+            'choices': [
+                {
+                    'message': {
+                        'content': (
+                            '{"items":['
+                            '{"label":"vintage camera","confidence":0.92,"estimated_value_usd":45.00},'
+                            '{"label":"leather bag","confidence":0.87,"estimated_value_usd":12.50}'
+                            ']}'
+                        )
+                    }
+                }
+            ]
+        },
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.items[0].estimated_value_usd == 45.0
+    assert result.items[1].estimated_value_usd == 12.5
+    assert result.total_estimated_value_usd == 57.5
+
+
+def test_anthropic_adapter_parses_estimated_value_usd() -> None:
+    adapter = AnthropicAnalysisAdapter(
+        base_url='https://api.anthropic.com',
+        model='claude-3-5-sonnet',
+        transport=lambda _url, _payload, _headers, _timeout: {
+            'content': [
+                {
+                    'text': (
+                        '{"items":['
+                        '{"label":"wooden chair","confidence":0.85,"estimated_value_usd":30.00},'
+                        '{"label":"desk lamp","confidence":0.78,"estimated_value_usd":15.00}'
+                        ']}'
+                    )
+                }
+            ]
+        },
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.items[0].estimated_value_usd == 30.0
+    assert result.items[1].estimated_value_usd == 15.0
+    assert result.total_estimated_value_usd == 45.0
+
+
+def test_ollama_adapter_parses_estimated_value_usd() -> None:
+    adapter = OllamaAnalysisAdapter(
+        base_url='http://localhost:11434',
+        model='llava',
+        transport=lambda _url, _payload, _headers, _timeout: {
+            'response': (
+                '{"items":['
+                '{"label":"mug","confidence":0.82,"estimated_value_usd":5.00},'
+                '{"label":"book","confidence":0.91,"estimated_value_usd":8.00}'
+                ']}'
+            )
+        },
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.items[0].estimated_value_usd == 5.0
+    assert result.items[1].estimated_value_usd == 8.0
+    assert result.total_estimated_value_usd == 13.0
+
+
+def test_analysis_run_endpoint_includes_total_estimated_value() -> None:
+    _set_auth_mode('scaffold')
+    response = client.post(
+        '/analysis/run',
+        json={'session_id': 's-valuation', 'image_storage_key': 'private/key.jpg'},
+        headers=VALID_HEADERS,
+    )
+    body = response.json()
+    assert response.status_code == 200
+    assert 'total_estimated_value_usd' in body
+    assert body['total_estimated_value_usd'] > 0

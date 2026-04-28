@@ -19,6 +19,7 @@ class AnalysisResult:
     items: list[DetectedItem]
     engine: str
     structured_output_version: str
+    total_estimated_value_usd: float = 0.0
 
 
 class ImageResolver:
@@ -98,12 +99,12 @@ class MockStructuredAnalysisAdapter:
     """
 
     _label_pool = [
-        "clothing",
-        "electronics",
-        "paper clutter",
-        "toy",
-        "book",
-        "kitchen item",
+        ("clothing", 12.0),
+        ("electronics", 45.0),
+        ("paper clutter", 3.0),
+        ("toy", 8.0),
+        ("book", 7.0),
+        ("kitchen item", 15.0),
     ]
 
     def run(self, image_storage_key: str) -> AnalysisResult:
@@ -112,24 +113,30 @@ class MockStructuredAnalysisAdapter:
         primary_index = digest[0] % len(self._label_pool)
         secondary_index = digest[1] % len(self._label_pool)
 
+        primary_label, primary_value = self._label_pool[primary_index]
         primary = DetectedItem(
-            label=self._label_pool[primary_index],
+            label=primary_label,
             confidence=round(0.6 + (digest[2] / 255.0) * 0.35, 2),
+            estimated_value_usd=primary_value,
         )
 
+        secondary_label, secondary_value = self._label_pool[secondary_index]
         secondary = DetectedItem(
-            label=self._label_pool[secondary_index],
+            label=secondary_label,
             confidence=round(0.35 + (digest[3] / 255.0) * 0.3, 2),
+            estimated_value_usd=secondary_value,
         )
 
         unique_items = [primary]
         if secondary.label != primary.label:
             unique_items.append(secondary)
 
+        total_value = sum(item.estimated_value_usd for item in unique_items)
         return AnalysisResult(
             items=unique_items,
             engine="mock-structured-v1",
             structured_output_version="2026-04-wp5-starter",
+            total_estimated_value_usd=round(total_value, 2),
         )
 
 
@@ -202,10 +209,12 @@ class OpenAICompatibleAnalysisAdapter:
                 f"Errors: {'; '.join(errors)}"
             )
 
+        total_value = sum(item.estimated_value_usd for item in items)
         return AnalysisResult(
             items=items,
             engine=f"openai-compatible:{self.model}",
             structured_output_version="2026-04-home-inference",
+            total_estimated_value_usd=round(total_value, 2),
         )
 
     def _sanitize_storage_key(self, key: str) -> str:
@@ -218,19 +227,35 @@ class OpenAICompatibleAnalysisAdapter:
 
     def _build_payloads(self, image_storage_key: str) -> list[dict[str, Any]]:
         safe_key = self._sanitize_storage_key(image_storage_key)
+        system = (
+            "You are DECLuTTER-AI's item detection adapter. "
+            "Return compact valid JSON only. Do not include markdown."
+        )
+        user_base = (
+            "Analyze this decluttering image and return ONLY JSON with "
+            "an items array. Each item must have label, confidence "
+            "between 0 and 1, and estimated_value_usd (approximate resale "
+            "or donation value in US dollars, 0 if unknown). Example: "
+            '{"items":[{"label":"book","confidence":0.82,"estimated_value_usd":7.50}]} '
+            f"Storage key: {safe_key}"
+        )
         return [
             self._build_payload(
                 safe_key,
+                system_prompt=system,
+                user_prompt=user_base,
+                include_response_format=True,
+            ),
+            self._build_payload(
+                safe_key,
                 system_prompt=(
-                    "You are DECLuTTER-AI's item detection adapter. "
-                    "Return compact valid JSON only. Do not include markdown."
+                    "You identify the visible items in DECLuTTER-AI photos. "
+                    "Reply only with a compact JSON object containing an "
+                    '"items" array of {label, confidence, estimated_value_usd}.'
                 ),
                 user_prompt=(
-                    "Analyze this decluttering image and return ONLY JSON with "
-                    "an items array. Each item must have label and confidence "
-                    "between 0 and 1. Example: "
-                    '{"items":[{"label":"book","confidence":0.82}]} '
-                    f"Storage key: {safe_key}"
+                    "Identify the visible items in this image. Reply only with "
+                    'JSON like {"items":[{"label":"book","confidence":0.82,"estimated_value_usd":7.50}]}.'
                 ),
                 include_response_format=True,
             ),
@@ -239,24 +264,11 @@ class OpenAICompatibleAnalysisAdapter:
                 system_prompt=(
                     "You identify the visible items in DECLuTTER-AI photos. "
                     "Reply only with a compact JSON object containing an "
-                    '"items" array of {label, confidence}.'
+                    '"items" array of {label, confidence, estimated_value_usd}.'
                 ),
                 user_prompt=(
                     "Identify the visible items in this image. Reply only with "
-                    'JSON like {"items":[{"label":"book","confidence":0.82}]}.'
-                ),
-                include_response_format=True,
-            ),
-            self._build_payload(
-                safe_key,
-                system_prompt=(
-                    "You identify the visible items in DECLuTTER-AI photos. "
-                    "Reply only with a compact JSON object containing an "
-                    '"items" array of {label, confidence}.'
-                ),
-                user_prompt=(
-                    "Identify the visible items in this image. Reply only with "
-                    'JSON like {"items":[{"label":"book","confidence":0.82}]}.'
+                    'JSON like {"items":[{"label":"book","confidence":0.82,"estimated_value_usd":7.50}]}.'
                 ),
                 include_response_format=False,
             ),
@@ -329,16 +341,22 @@ class OpenAICompatibleAnalysisAdapter:
                 continue
             label = raw_item.get("label")
             confidence = raw_item.get("confidence", 0.5)
+            estimated_value = raw_item.get("estimated_value_usd", 0.0)
             if not isinstance(label, str) or not label.strip():
                 continue
             try:
                 confidence_value = float(confidence)
             except (TypeError, ValueError):
                 confidence_value = 0.5
+            try:
+                value = float(estimated_value)
+            except (TypeError, ValueError):
+                value = 0.0
             items.append(
                 DetectedItem(
                     label=label.strip()[:80],
                     confidence=max(0.0, min(1.0, round(confidence_value, 2))),
+                    estimated_value_usd=max(0.0, min(50000.0, round(value, 2))),
                 )
             )
 
@@ -442,10 +460,12 @@ class AnthropicAnalysisAdapter:
                 f"Errors: {'; '.join(errors)}"
             )
 
+        total_value = sum(item.estimated_value_usd for item in items)
         return AnalysisResult(
             items=items,
             engine=f"anthropic:{self.model}",
             structured_output_version="2026-04-anthropic-messages",
+            total_estimated_value_usd=round(total_value, 2),
         )
 
     def _build_payloads(self, image_storage_key: str) -> list[dict[str, Any]]:
@@ -476,7 +496,7 @@ class AnthropicAnalysisAdapter:
                 "system": (
                     "You are DECLuTTER-AI's item detection adapter. "
                     "Return compact valid JSON only. Do not include markdown. "
-                    "Example: {\"items\":[{\"label\":\"book\",\"confidence\":0.82}]}"
+                    "Example: {\"items\":[{\"label\":\"book\",\"confidence\":0.82,\"estimated_value_usd\":7.50}]}"
                 ),
                 "messages": [
                     {
@@ -487,8 +507,9 @@ class AnthropicAnalysisAdapter:
                                 "type": "text",
                                 "text": (
                                     "Analyze this decluttering image and return ONLY JSON "
-                                    "with an items array. Each item must have label and "
-                                    "confidence between 0 and 1."
+                                    "with an items array. Each item must have label, "
+                                    "confidence between 0 and 1, and estimated_value_usd "
+                                    "(approximate resale or donation value in US dollars, 0 if unknown)."
                                 ),
                             }
                         ],
@@ -502,7 +523,7 @@ class AnthropicAnalysisAdapter:
                 "system": (
                     "You identify the visible items in DECLuTTER-AI photos. "
                     "Reply only with a compact JSON object containing an "
-                    '"items" array of {label, confidence}.'
+                    '"items" array of {label, confidence, estimated_value_usd}.'
                 ),
                 "messages": [
                     {
@@ -514,7 +535,7 @@ class AnthropicAnalysisAdapter:
                                 "text": (
                                     "Identify the visible items in this image. "
                                     "Reply only with JSON like "
-                                    '{"items":[{"label":"book","confidence":0.82}]}'
+                                    '{"items":[{"label":"book","confidence":0.82,"estimated_value_usd":7.50}]}'
                                 ),
                             }
                         ],
@@ -552,16 +573,22 @@ class AnthropicAnalysisAdapter:
                 continue
             label = raw_item.get("label")
             confidence = raw_item.get("confidence", 0.5)
+            estimated_value = raw_item.get("estimated_value_usd", 0.0)
             if not isinstance(label, str) or not label.strip():
                 continue
             try:
                 confidence_value = float(confidence)
             except (TypeError, ValueError):
                 confidence_value = 0.5
+            try:
+                value = float(estimated_value)
+            except (TypeError, ValueError):
+                value = 0.0
             items.append(
                 DetectedItem(
                     label=label.strip()[:80],
                     confidence=max(0.0, min(1.0, round(confidence_value, 2))),
+                    estimated_value_usd=max(0.0, min(50000.0, round(value, 2))),
                 )
             )
 
@@ -661,10 +688,12 @@ class OllamaAnalysisAdapter:
                 f"Errors: {'; '.join(errors)}"
             )
 
+        total_value = sum(item.estimated_value_usd for item in items)
         return AnalysisResult(
             items=items,
             engine=f"ollama:{self.model}",
             structured_output_version="2026-04-ollama-native",
+            total_estimated_value_usd=round(total_value, 2),
         )
 
     def _build_payloads(self, image_storage_key: str) -> list[dict[str, Any]]:
@@ -677,7 +706,7 @@ class OllamaAnalysisAdapter:
         system = (
             "You are DECLuTTER-AI's item detection adapter. "
             "Return compact valid JSON only. Do not include markdown. "
-            "Example: {\"items\":[{\"label\":\"book\",\"confidence\":0.82}]}"
+            "Example: {\"items\":[{\"label\":\"book\",\"confidence\":0.82,\"estimated_value_usd\":7.50}]}"
         )
 
         return [
@@ -686,8 +715,9 @@ class OllamaAnalysisAdapter:
                 "system": system,
                 "prompt": (
                     "Analyze this decluttering image and return ONLY JSON with "
-                    "an items array. Each item must have label and confidence "
-                    "between 0 and 1."
+                    "an items array. Each item must have label, confidence "
+                    "between 0 and 1, and estimated_value_usd (approximate resale "
+                    "or donation value in US dollars, 0 if unknown)."
                 ),
                 "images": images,
                 "format": "json",
@@ -702,7 +732,7 @@ class OllamaAnalysisAdapter:
                 "system": system,
                 "prompt": (
                     "Identify the visible items in this image. Reply only with "
-                    "JSON like {\"items\":[{\"label\":\"book\",\"confidence\":0.82}]}"
+                    "JSON like {\"items\":[{\"label\":\"book\",\"confidence\":0.82,\"estimated_value_usd\":7.50}]}"
                 ),
                 "images": images,
                 "format": "json",
@@ -735,16 +765,22 @@ class OllamaAnalysisAdapter:
                 continue
             label = raw_item.get("label")
             confidence = raw_item.get("confidence", 0.5)
+            estimated_value = raw_item.get("estimated_value_usd", 0.0)
             if not isinstance(label, str) or not label.strip():
                 continue
             try:
                 confidence_value = float(confidence)
             except (TypeError, ValueError):
                 confidence_value = 0.5
+            try:
+                value = float(estimated_value)
+            except (TypeError, ValueError):
+                value = 0.0
             items.append(
                 DetectedItem(
                     label=label.strip()[:80],
                     confidence=max(0.0, min(1.0, round(confidence_value, 2))),
+                    estimated_value_usd=max(0.0, min(50000.0, round(value, 2))),
                 )
             )
 

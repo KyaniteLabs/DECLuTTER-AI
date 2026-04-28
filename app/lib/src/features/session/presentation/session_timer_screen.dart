@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../capture/presentation/capture_screen.dart';
 import '../../decide/presentation/decision_card.dart';
 import '../../grouping/domain/grouped_detection_result.dart';
 import '../../valuate/models/valuation.dart';
@@ -107,11 +108,10 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
           valuations: valuationsMap,
           sessionDuration: duration,
           onStartNewSprint: () {
-            Navigator.of(context).pop();
-            setState(() {
-              _sessionStartTime = DateTime.now();
-            });
-            _controller.resetSprint();
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const CaptureScreen()),
+              (route) => false,
+            );
           },
         ),
       ),
@@ -142,7 +142,9 @@ class _SessionTimerScreenState extends State<SessionTimerScreen> {
                   ),
                 const QuickStartCard(),
                 const SizedBox(height: 16),
-                if (activeState != null)
+                if (activeState != null &&
+                    (activeState.remoteItemsByGroupId.isNotEmpty ||
+                        activeState.moneyOnTableLowUsd != null))
                   CashToClearStatusCard(
                     isSyncing: activeState.isSyncingCashToClear,
                     message: activeState.cashToClearSyncMessage,
@@ -484,125 +486,6 @@ class CashToClearStatusCard extends StatelessWidget {
                 );
               }),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class SessionDecisionComposer extends StatelessWidget {
-  const SessionDecisionComposer({
-    super.key,
-    required this.groupedResult,
-    required this.selectedGroupId,
-    required this.onGroupSelected,
-    required this.decisions,
-    required this.onCategorySelected,
-  });
-
-  final GroupedDetectionResult groupedResult;
-  final String? selectedGroupId;
-  final ValueChanged<String> onGroupSelected;
-  final List<SessionDecision> decisions;
-  final ValueChanged<DecisionCategory> onCategorySelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final Map<String, int> decisionCounts = {};
-    for (final decision in decisions) {
-      decisionCounts.update(decision.groupId, (value) => value + 1,
-          ifAbsent: () => 1);
-    }
-
-    final groups = groupedResult.groups;
-
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Log your decisions',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-                'Choose a highlighted group, then tap the bucket that matches your action. Add a quick note to lock it in.'),
-            const SizedBox(height: 16),
-            if (!groupedResult.hasGroups)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'No grouped detections yet. Capture a zone photo or retry analysis to unlock guided sorting.',
-                  textAlign: TextAlign.center,
-                ),
-              )
-            else ...[
-              Text(
-                'Pick a group to work on:',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: groups.map(
-                  (group) {
-                    final resolved = decisionCounts[group.id] ?? 0;
-                    final isSelected = group.id == selectedGroupId;
-                    final label =
-                        '${group.displayLabel} · $resolved/${group.count} sorted';
-                    return ChoiceChip(
-                      selected: isSelected,
-                      onSelected: (_) => onGroupSelected(group.id),
-                      avatar: const Icon(Icons.layers_outlined),
-                      label: Text(label),
-                    );
-                  },
-                ).toList(),
-              ),
-              const SizedBox(height: 16),
-            ],
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: DecisionCategory.values
-                  .map(
-                    (category) => Semantics(
-                      button: true,
-                      label: '${category.label} decision',
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minWidth: 48,
-                          minHeight: 48,
-                        ),
-                        child: FilledButton.tonalIcon(
-                          onPressed:
-                              !groupedResult.hasGroups || selectedGroupId == null
-                                  ? null
-                                  : () => onCategorySelected(category),
-                          icon: Icon(category.icon),
-                          label: Text(category.label),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(48, 48),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
           ],
         ),
       ),

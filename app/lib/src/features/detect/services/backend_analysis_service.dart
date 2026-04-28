@@ -119,6 +119,7 @@ class BackendAnalysisService {
         final item = items[i] as Map<String, dynamic>;
         final label = item['label'] as String?;
         final confidence = (item['confidence'] as num?)?.toDouble() ?? 0.5;
+        final estimatedValue = (item['estimated_value_usd'] as num?)?.toDouble() ?? 0.0;
         if (label == null || label.isEmpty) continue;
 
         // Distribute detections evenly across the image for visual feedback
@@ -136,6 +137,7 @@ class BackendAnalysisService {
           label: label,
           confidence: confidence.clamp(0.0, 1.0),
           boundingBox: Rect.fromLTRB(left, top, right, bottom),
+          estimatedValueUsd: estimatedValue.clamp(0.0, 50000.0),
         ));
       }
 

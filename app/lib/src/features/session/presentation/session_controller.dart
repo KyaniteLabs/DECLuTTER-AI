@@ -262,15 +262,25 @@ class SessionController extends ChangeNotifier {
     _notify();
 
     try {
-      final service = _valuationService;
-      final valuation = service != null && service.isConfigured
-          ? await service.estimateGroup(group, condition: 'unknown')
-          : ValuationService.localFallback(
-              category: group.displayLabel,
-              condition: 'unknown',
-              count: group.count,
-            );
-      _valuations[group.id] = valuation;
+      // If the backend analysis already provided a valuation, use it directly.
+      if (group.estimatedValueUsd > 0) {
+        _valuations[group.id] = Valuation(
+          low: group.estimatedValueUsd,
+          mid: group.estimatedValueUsd,
+          high: group.estimatedValueUsd,
+          confidence: group.averageConfidence,
+        );
+      } else {
+        final service = _valuationService;
+        final valuation = service != null && service.isConfigured
+            ? await service.estimateGroup(group, condition: 'unknown')
+            : ValuationService.localFallback(
+                category: group.displayLabel,
+                condition: 'unknown',
+                count: group.count,
+              );
+        _valuations[group.id] = valuation;
+      }
     } on Exception catch (e) {
       debugPrint('Valuation fetch failed for ${group.id}: $e');
       _valuations[group.id] = null;

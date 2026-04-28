@@ -34,6 +34,13 @@ class DetectionGroup {
     return total / detections.length;
   }
 
+  /// Total estimated value for this group (sum of all detections).
+  double get estimatedValueUsd {
+    if (detections.isEmpty) return 0.0;
+    return detections.fold<double>(
+        0, (sum, d) => sum + d.estimatedValueUsd);
+  }
+
   /// Friendly label that includes the item count when greater than one.
   String get friendlyLabel {
     if (count <= 1) {

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/repositories/session_repository.dart';
+import '../../grouping/domain/detection_group.dart';
+import '../../grouping/domain/grouped_detection_result.dart';
+import '../../session/domain/session_decision.dart';
+import '../../summary/presentation/session_summary_screen.dart';
+import '../../valuate/models/valuation.dart';
 import '../../settings/presentation/settings_screen.dart';
 
 /// Lists all persisted declutter sessions with quick stats.
@@ -35,6 +40,71 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _delete(String id) async {
     await _repository.deleteSession(id);
     await _load();
+  }
+
+  void _openSessionSummary(BuildContext context, PersistedSession session) {
+    final groupedResult = GroupedDetectionResult(
+      groups: session.groups.map((g) => DetectionGroup(
+        id: g.id,
+        rawLabel: g.label,
+        displayLabel: g.label,
+        detections: const [],
+      )).toList(),
+      totalDetections: session.totalItems,
+      originalSize: Size.zero,
+      isMocked: false,
+    );
+
+    final decisions = <String, SessionDecision>{};
+    for (final d in session.decisions) {
+      final category = DecisionCategory.values.firstWhere(
+        (c) => c.name == d.category,
+        orElse: () => DecisionCategory.maybe,
+      );
+      decisions[d.groupId] = SessionDecision(
+        groupId: d.groupId,
+        groupLabel: session.groups.firstWhere(
+          (g) => g.id == d.groupId,
+          orElse: () => PersistedGroup(
+            id: d.groupId,
+            sessionId: session.id,
+            label: 'Group',
+            itemCount: 1,
+            averageConfidence: 0,
+            createdAt: session.createdAt,
+          ),
+        ).label,
+        groupTotal: 1,
+        category: category,
+        createdAt: d.createdAt,
+        note: d.note,
+      );
+    }
+
+    final valuations = <String, Valuation?>{};
+    for (final v in session.valuations) {
+      valuations[v.groupId] = Valuation(
+        low: v.lowUsd,
+        mid: v.midUsd,
+        high: v.highUsd,
+        confidence: v.confidence,
+      );
+    }
+
+    final duration = session.completedAt != null
+        ? session.completedAt!.difference(session.createdAt)
+        : Duration.zero;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SessionSummaryScreen(
+          groupedResult: groupedResult,
+          decisions: decisions,
+          valuations: valuations,
+          sessionDuration: duration,
+        ),
+      ),
+    );
   }
 
   @override
@@ -93,6 +163,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       return _SessionCard(
                         session: session,
                         onDelete: () => _delete(session.id),
+                        onTap: () => _openSessionSummary(context, session),
                       );
                     },
                   ),
@@ -102,10 +173,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
 }
 
 class _SessionCard extends StatelessWidget {
-  const _SessionCard({required this.session, required this.onDelete});
+  const _SessionCard({
+    required this.session,
+    required this.onDelete,
+    this.onTap,
+  });
 
   final PersistedSession session;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +194,10 @@ class _SessionCard extends StatelessWidget {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,7 +254,8 @@ class _SessionCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

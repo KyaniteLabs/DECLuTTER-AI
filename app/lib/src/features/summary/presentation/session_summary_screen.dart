@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../capture/presentation/capture_screen.dart';
 import '../../grouping/domain/grouped_detection_result.dart';
 import '../../session/domain/session_decision.dart';
 import '../models/session_summary_data.dart';
@@ -96,7 +97,10 @@ class SessionSummaryScreen extends StatelessWidget {
     if (onStartNewSprint != null) {
       onStartNewSprint!();
     } else {
-      Navigator.of(context).pop();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const CaptureScreen()),
+        (route) => false,
+      );
     }
   }
 }

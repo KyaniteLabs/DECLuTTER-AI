@@ -42,5 +42,33 @@ void main() {
       expect(groups.last.displayLabel, 'Mug');
       expect(groups.last.count, 1);
     });
+
+    test('sums estimatedValueUsd per group', () {
+      final groups = grouper.groupDetections(
+        [
+          const Detection(
+            label: 'book',
+            confidence: 0.9,
+            boundingBox: Rect.fromLTWH(0, 0, 0.5, 0.5),
+            estimatedValueUsd: 7.5,
+          ),
+          const Detection(
+            label: 'book',
+            confidence: 0.8,
+            boundingBox: Rect.fromLTWH(0.1, 0.1, 0.4, 0.4),
+            estimatedValueUsd: 7.5,
+          ),
+          const Detection(
+            label: 'mug',
+            confidence: 0.95,
+            boundingBox: Rect.fromLTWH(0.2, 0.2, 0.3, 0.3),
+            estimatedValueUsd: 5.0,
+          ),
+        ],
+      );
+
+      expect(groups.first.estimatedValueUsd, 15.0);
+      expect(groups.last.estimatedValueUsd, 5.0);
+    });
   });
 }

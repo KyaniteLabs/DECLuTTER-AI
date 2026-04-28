@@ -11,6 +11,7 @@ class Detection {
     required this.label,
     required this.confidence,
     required this.boundingBox,
+    this.estimatedValueUsd = 0.0,
   });
 
   /// Raw label predicted by the detector.
@@ -18,6 +19,9 @@ class Detection {
 
   /// Confidence score between 0.0 and 1.0.
   final double confidence;
+
+  /// Estimated resale / donation value in USD (0.0 if unknown).
+  final double estimatedValueUsd;
 
   /// Bounding box with normalized left, top, right, bottom coordinates.
   final Rect boundingBox;
@@ -64,6 +68,7 @@ class Detection {
         math.max(clamped.left, clamped.right),
         math.max(clamped.top, clamped.bottom),
       ),
+      estimatedValueUsd: estimatedValueUsd,
     );
   }
 }
