@@ -1781,8 +1781,8 @@ def test_lmstudio_native_adapter_retries_with_fallback_prompt() -> None:
 
     assert result.items[0].label == 'book'
     assert len(calls) == 2
-    assert 'Analyze this decluttering image' in calls[0]['messages'][1]['content'][0]['text']
-    assert 'Identify the visible items' in calls[1]['messages'][1]['content'][0]['text']
+    assert 'Analyze this decluttering image' in calls[0]['messages'][1]['content']
+    assert 'Identify the visible items' in calls[1]['messages'][1]['content']
 
 
 def test_lmstudio_native_adapter_rejects_empty_choices() -> None:

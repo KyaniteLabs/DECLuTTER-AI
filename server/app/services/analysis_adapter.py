@@ -896,20 +896,19 @@ class LMStudioNativeAnalysisAdapter:
         )
 
     def _build_payloads(self, image_storage_key: str) -> list[dict[str, Any]]:
+        # LM Studio native /api/v0/chat/completions uses a top-level ``images``
+        # array with raw base64 strings and plain-text ``content`` — not the
+        # OpenAI-compatible array-of-blocks format.
         image_url = self._resolver.resolve(image_storage_key)
-        image_content: list[dict[str, Any]] = []
+        images: list[str] = []
         if image_url:
-            image_content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {"url": image_url},
-                }
-            )
+            # Strip data:...;base64, prefix to get raw base64 for LM Studio
+            images = [image_url.split(",", 1)[1]]
 
         system = (
             "You are DECLuTTER-AI's item detection adapter. "
             "Return compact valid JSON only. Do not include markdown. "
-            "Example: {\"items\":[{\"label\":\"book\",\"confidence\":0.82,\"estimated_value_usd\":7.50}]}"
+            'Example: {"items":[{"label":"book","confidence":0.82,"estimated_value_usd":7.50}]}'
         )
         return [
             {
@@ -918,20 +917,15 @@ class LMStudioNativeAnalysisAdapter:
                     {"role": "system", "content": system},
                     {
                         "role": "user",
-                        "content": image_content
-                        + [
-                            {
-                                "type": "text",
-                                "text": (
-                                    "Analyze this decluttering image and return ONLY JSON "
-                                    "with an items array. Each item must have label, "
-                                    "confidence between 0 and 1, and estimated_value_usd "
-                                    "(approximate resale or donation value in US dollars, 0 if unknown)."
-                                ),
-                            }
-                        ],
+                        "content": (
+                            "Analyze this decluttering image and return ONLY JSON "
+                            "with an items array. Each item must have label, "
+                            "confidence between 0 and 1, and estimated_value_usd "
+                            "(approximate resale or donation value in US dollars, 0 if unknown)."
+                        ),
                     },
                 ],
+                "images": images,
                 "temperature": 0,
                 "max_tokens": self.max_tokens,
             },
@@ -941,24 +935,18 @@ class LMStudioNativeAnalysisAdapter:
                     {"role": "system", "content": system},
                     {
                         "role": "user",
-                        "content": image_content
-                        + [
-                            {
-                                "type": "text",
-                                "text": (
-                                    "Identify the visible items in this image. "
-                                    "Reply only with JSON like "
-                                    '{"items":[{"label":"book","confidence":0.82,"estimated_value_usd":7.50}]}'
-                                ),
-                            }
-                        ],
+                        "content": (
+                            "Identify the visible items in this image. "
+                            "Reply only with JSON like "
+                            '{"items":[{"label":"book","confidence":0.82,"estimated_value_usd":7.50}]}'
+                        ),
                     },
                 ],
+                "images": images,
                 "temperature": 0,
                 "max_tokens": self.max_tokens,
             },
         ]
-
     @staticmethod
     def _post_json(
         url: str,
