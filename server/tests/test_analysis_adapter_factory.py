@@ -9,6 +9,7 @@ import pytest
 
 from app.services.analysis_adapter import (
     AnthropicAnalysisAdapter,
+    LMStudioNativeAnalysisAdapter,
     MockStructuredAnalysisAdapter,
     OllamaAnalysisAdapter,
     OpenAICompatibleAnalysisAdapter,
@@ -60,8 +61,9 @@ class TestCreateAnalysisAdapterFromEnv:
         }
         with patch.dict(os.environ, env, clear=True):
             adapter = create_analysis_adapter_from_env()
-        assert isinstance(adapter, OpenAICompatibleAnalysisAdapter)
-        assert adapter.base_url == "http://127.0.0.1:1234/v1"
+        assert isinstance(adapter, LMStudioNativeAnalysisAdapter)
+        # Native adapter strips the /v1 suffix
+        assert adapter.base_url == "http://127.0.0.1:1234"
         assert adapter.model == "my-local-model"
 
     def test_anthropic_provider(self) -> None:

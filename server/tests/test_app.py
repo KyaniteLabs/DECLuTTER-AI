@@ -370,7 +370,7 @@ def test_bad_home_inference_config_returns_controlled_503() -> None:
     )
 
     assert response.status_code == 503
-    assert 'required for OpenAI-compatible analysis' in response.json()['detail']
+    assert 'required for LM Studio analysis' in response.json()['detail']
 
 
 def test_openai_compatible_analysis_adapter_parses_structured_items(
@@ -1701,3 +1701,102 @@ def test_analysis_run_endpoint_includes_total_estimated_value() -> None:
     assert response.status_code == 200
     assert 'total_estimated_value_usd' in body
     assert body['total_estimated_value_usd'] > 0
+
+
+
+# ---------------------------------------------------------------------------
+# LM Studio native adapter tests
+# ---------------------------------------------------------------------------
+
+from services.analysis_adapter import LMStudioNativeAnalysisAdapter
+
+
+def test_lmstudio_native_adapter_strips_v1_suffix() -> None:
+    adapter = LMStudioNativeAnalysisAdapter(
+        base_url='http://host.docker.internal:1234/v1',
+        model='qwen3.5-0.8b',
+    )
+    assert adapter.base_url == 'http://host.docker.internal:1234'
+
+
+def test_lmstudio_native_adapter_parses_vision_response() -> None:
+    adapter = LMStudioNativeAnalysisAdapter(
+        base_url='http://host.docker.internal:1234',
+        model='qwen3.5-0.8b',
+        transport=lambda _url, _payload, _headers, _timeout: {
+            'choices': [
+                {
+                    'message': {
+                        'content': (
+                            '{"items":['
+                            '{"label":"vintage camera","confidence":0.92,"estimated_value_usd":45.00},'
+                            '{"label":"leather bag","confidence":0.87,"estimated_value_usd":12.50}'
+                            ']}'
+                        )
+                    }
+                }
+            ]
+        },
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.engine == 'lmstudio-native:qwen3.5-0.8b'
+    assert result.items[0].estimated_value_usd == 45.0
+    assert result.items[1].estimated_value_usd == 12.5
+    assert result.total_estimated_value_usd == 57.5
+
+
+def test_lmstudio_native_adapter_retries_with_fallback_prompt() -> None:
+    calls: list[dict[str, object]] = []
+
+    def flaky_transport(
+        _url: str,
+        payload: dict[str, object],
+        _headers: dict[str, str],
+        _timeout: float,
+    ) -> dict[str, object]:
+        calls.append(payload)
+        if len(calls) == 1:
+            return {'choices': [{'message': {'content': ''}}]}
+        return {
+            'choices': [
+                {
+                    'message': {
+                        'content': (
+                            '{"items":[{\"label\":\"book\",\"confidence\":0.9,\"estimated_value_usd\":7.50}]}'
+                        )
+                    }
+                }
+            ]
+        }
+
+    adapter = LMStudioNativeAnalysisAdapter(
+        base_url='http://host.docker.internal:1234',
+        model='qwen3.5-0.8b',
+        transport=flaky_transport,
+    )
+
+    result = adapter.run('intake/missing.jpg')
+
+    assert result.items[0].label == 'book'
+    assert len(calls) == 2
+    assert 'Analyze this decluttering image' in calls[0]['messages'][1]['content'][0]['text']
+    assert 'Identify the visible items' in calls[1]['messages'][1]['content'][0]['text']
+
+
+def test_lmstudio_native_adapter_rejects_empty_choices() -> None:
+    adapter = LMStudioNativeAnalysisAdapter(
+        base_url='http://host.docker.internal:1234',
+        model='qwen3.5-0.8b',
+        transport=lambda _url, _payload, _headers, _timeout: {'choices': []},
+    )
+
+    try:
+        adapter.run('intake/missing.jpg')
+    except RuntimeError as exc:
+        assert 'Inference provider returned no choices.' in str(exc)
+        assert 'Payload 1:' in str(exc)
+        assert 'Payload 2:' in str(exc)
+    else:
+        raise AssertionError('empty choices should raise RuntimeError')

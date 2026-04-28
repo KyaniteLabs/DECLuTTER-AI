@@ -815,6 +815,176 @@ class OllamaAnalysisAdapter:
 
 
 # ---------------------------------------------------------------------------
+# LM Studio native adapter (uses /api/v0/chat/completions)
+# ---------------------------------------------------------------------------
+
+
+class LMStudioNativeAnalysisAdapter:
+    """Structured item detection through LM Studio's native API.
+
+    LM Studio's OpenAI-compatible ``/v1/chat/completions`` wrapper has a
+    known bug with base64-encoded images in ``image_url`` blocks (issue #1752).
+    The native ``/api/v0/chat/completions`` endpoint correctly accepts data
+    URLs and is used here instead.
+
+    Response format is identical to OpenAI's so we reuse
+    :meth:`OpenAICompatibleAnalysisAdapter._parse_items`.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        api_key: str | None = None,
+        upload_dir: str | None = None,
+        timeout_seconds: float = 180,
+        max_tokens: int = 256,
+        transport: Callable[[str, dict[str, Any], dict[str, str], float], dict[str, Any]]
+        | None = None,
+    ) -> None:
+        if not base_url.strip():
+            raise RuntimeError(
+                "DECLUTTER_INFERENCE_BASE_URL is required for LM Studio analysis."
+            )
+        if not model.strip():
+            raise RuntimeError(
+                "DECLUTTER_INFERENCE_MODEL is required for LM Studio analysis."
+            )
+
+        # Native endpoint lives at the root, not under /v1
+        raw = base_url.rstrip("/")
+        if raw.endswith("/v1"):
+            raw = raw[:-3]
+        self.base_url = raw
+        self.model = model
+        self.api_key = api_key
+        self._resolver = ImageResolver(upload_dir)
+        self.timeout_seconds = timeout_seconds
+        self.max_tokens = max_tokens
+        self.transport = transport or self._post_json
+
+    def run(self, image_storage_key: str) -> AnalysisResult:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key and self.api_key.strip():
+            headers["Authorization"] = f"Bearer {self.api_key.strip()}"
+
+        errors: list[str] = []
+        for i, payload in enumerate(self._build_payloads(image_storage_key), start=1):
+            try:
+                response = self.transport(
+                    f"{self.base_url}/api/v0/chat/completions",
+                    payload,
+                    headers,
+                    self.timeout_seconds,
+                )
+                items = OpenAICompatibleAnalysisAdapter._parse_items(response)
+                break
+            except RuntimeError as exc:
+                errors.append(f"Payload {i}: {exc}")
+        else:
+            raise RuntimeError(
+                f"LM Studio provider returned no usable response after {len(errors)} attempt(s). "
+                f"Errors: {'; '.join(errors)}"
+            )
+
+        total_value = sum(item.estimated_value_usd for item in items)
+        return AnalysisResult(
+            items=items,
+            engine=f"lmstudio-native:{self.model}",
+            structured_output_version="2026-04-lmstudio-native",
+            total_estimated_value_usd=round(total_value, 2),
+        )
+
+    def _build_payloads(self, image_storage_key: str) -> list[dict[str, Any]]:
+        image_url = self._resolver.resolve(image_storage_key)
+        image_content: list[dict[str, Any]] = []
+        if image_url:
+            image_content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": image_url},
+                }
+            )
+
+        system = (
+            "You are DECLuTTER-AI's item detection adapter. "
+            "Return compact valid JSON only. Do not include markdown. "
+            "Example: {\"items\":[{\"label\":\"book\",\"confidence\":0.82,\"estimated_value_usd\":7.50}]}"
+        )
+        return [
+            {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {
+                        "role": "user",
+                        "content": image_content
+                        + [
+                            {
+                                "type": "text",
+                                "text": (
+                                    "Analyze this decluttering image and return ONLY JSON "
+                                    "with an items array. Each item must have label, "
+                                    "confidence between 0 and 1, and estimated_value_usd "
+                                    "(approximate resale or donation value in US dollars, 0 if unknown)."
+                                ),
+                            }
+                        ],
+                    },
+                ],
+                "temperature": 0,
+                "max_tokens": self.max_tokens,
+            },
+            {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {
+                        "role": "user",
+                        "content": image_content
+                        + [
+                            {
+                                "type": "text",
+                                "text": (
+                                    "Identify the visible items in this image. "
+                                    "Reply only with JSON like "
+                                    '{"items":[{"label":"book","confidence":0.82,"estimated_value_usd":7.50}]}'
+                                ),
+                            }
+                        ],
+                    },
+                ],
+                "temperature": 0,
+                "max_tokens": self.max_tokens,
+            },
+        ]
+
+    @staticmethod
+    def _post_json(
+        url: str,
+        payload: dict[str, Any],
+        headers: dict[str, str],
+        timeout_seconds: float,
+    ) -> dict[str, Any]:
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"LM Studio provider returned HTTP {exc.code}: {detail[:500]}"
+            ) from exc
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"LM Studio provider request failed: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 
@@ -905,7 +1075,19 @@ def create_analysis_adapter_from_env() -> AnalysisAdapter:
             max_tokens=config["max_tokens"],
         )
 
-    # OpenAI-compatible catch-all (OpenAI, Groq, Together, LM Studio,
+    # LM Studio native API (bypasses the buggy /v1 OpenAI-compatible wrapper)
+    if provider in {"lmstudio", "lm-studio", "lm_studio"}:
+        if not config["base_url"]:
+            config["base_url"] = "http://127.0.0.1:1234/v1"
+        return LMStudioNativeAnalysisAdapter(
+            base_url=config["base_url"],
+            model=config["model"],
+            api_key=config["api_key"],
+            timeout_seconds=config["timeout_seconds"],
+            max_tokens=config["max_tokens"],
+        )
+
+    # OpenAI-compatible catch-all (OpenAI, Groq, Together,
     # Azure OpenAI, Fireworks, Cerebras, Ollama's /v1 wrapper, etc.)
     openai_compatible_providers = {
         "openai",
@@ -922,13 +1104,8 @@ def create_analysis_adapter_from_env() -> AnalysisAdapter:
         "home",
         "home_inference",
         "home-inference",
-        "lmstudio",
-        "lm-studio",
     }
     if provider in openai_compatible_providers:
-        # Default LM Studio URL when provider name hints at it
-        if "lm" in provider and not config["base_url"]:
-            config["base_url"] = "http://127.0.0.1:1234/v1"
         if not config["base_url"]:
             config["base_url"] = "https://api.openai.com/v1"
         return OpenAICompatibleAnalysisAdapter(
